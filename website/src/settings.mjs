@@ -69,6 +69,7 @@ export const defaultSettings = {
   multiChannelOrbits: false,
   includePrebakeScriptInShare: true,
   settingsTab: 'settings',
+  visualizerMode: 'waveform',
 };
 
 let search = null;
@@ -141,6 +142,7 @@ export const setSettingsTab = (tab) => settingsMap.setKey('settingsTab', tab);
 export const storePrebakeScript = (script) => settingsMap.setKey('prebakeScript', script);
 
 export const setIsZen = (active) => settingsMap.setKey('isZen', !!active);
+export const setVisualizerMode = (mode) => settingsMap.setKey('visualizerMode', mode);
 
 const patternSetting = (key) =>
   register(key, (value, pat) =>

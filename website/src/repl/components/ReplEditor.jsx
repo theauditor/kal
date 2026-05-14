@@ -23,21 +23,35 @@ export default function ReplEditor(Props) {
   const isPerformanceMode = typeof window !== 'undefined' && window.location.pathname.includes('/p');
 
   return (
-    <div className="h-full flex flex-col relative bg-background text-on-background selection:bg-surface-tint/30 font-body-standard overflow-hidden" {...editorProps}>
+    <div className={cx(
+      "h-full flex flex-col relative text-on-background selection:bg-surface-tint/30 font-body-standard overflow-hidden",
+      isZen ? "bg-black" : "bg-background"
+    )} {...editorProps}>
+      {isZen && (
+        <div className="absolute inset-0 z-0 pointer-events-none flex items-center justify-center opacity-40">
+          <VisualizerSuite started={started} />
+        </div>
+      )}
       <Loader active={pending} />
       
       {/* TopAppBar - Global Controls */}
       <MainPanel context={context} isEmbedded={isEmbedded} />
       
       {/* Main Workspace */}
-      <main className="flex-grow grid grid-cols-1 md:grid-cols-[1fr_320px] gap-0 overflow-hidden relative">
+      <main className={cx(
+        "flex-grow grid grid-cols-1 gap-0 overflow-hidden relative z-10",
+        !isZen && "md:grid-cols-[1fr_320px]"
+      )}>
         
         {/* Editor Section */}
-        <section className="relative flex flex-col bg-surface-container-lowest overflow-hidden border-r border-outline-variant">
+        <section className={cx(
+          "relative flex flex-col overflow-hidden",
+          isZen ? "bg-transparent" : "bg-surface-container-lowest border-r border-outline-variant"
+        )}>
           
 
           <div className="flex overflow-hidden h-full relative">
-            <Code containerRef={containerRef} editorRef={editorRef} init={init} />
+            <Code containerRef={containerRef} editorRef={editorRef} init={init} isZen={isZen} />
             {/* The existing RightPanel (tabs) can be toggled and will slide over the editor or aside */}
             {!isZen && panelPosition === 'right' && <RightPanel context={context} />}
           </div>

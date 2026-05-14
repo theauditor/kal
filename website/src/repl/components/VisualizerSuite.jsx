@@ -1,5 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { analysers, getAnalyzerData, getAnalyserById } from '@strudel/webaudio';
+import { useSettings, setVisualizerMode } from '@src/settings.mjs';
 
 // --- Waveform (Existing) ---
 export function WaveformVisualizer({ started, color = '#c9a84c' }) {
@@ -247,7 +248,9 @@ export function HeatmapVisualizer({ started, color = '#c9a84c' }) {
 }
 
 export function VisualizerSuite({ started, color }) {
-  const [mode, setMode] = useState('waveform');
+  const { visualizerMode } = useSettings();
+  const mode = visualizerMode || 'waveform';
+  const setMode = setVisualizerMode;
   
   const modes = [
     { id: 'waveform', label: 'Wave', icon: 'show_chart' },

@@ -1,16 +1,23 @@
-# strudel
+# Kāl Performance Station
 
-Live coding patterns on the web
+Kāl Performance Station is a professional, performance-oriented environment built on top of the incredible [Strudel](https://strudel.cc) project, which itself is a JavaScript port of the popular [TidalCycles](https://tidalcycles.org) live coding environment. 
 
+Kāl aims to provide a robust, focused, and aesthetically immersive live performance tool. It takes the deeply expressive pattern-generation engine from Strudel and wraps it in a modern, dark-themed, highly-responsive digital audio workstation (DAW) and VJing interface.
 
-- Try it here: <https://strudel.cc>
-- Docs: <https://strudel.cc/learn>
-- Source: https://codeberg.org/uzu/strudel/
-  * Along with many other live coding projects, we have moved from Microsoft's Github platform to Codeberg for ethical reasons. **Please don't fork the project back to github**.
-- Technical Blog Post: <https://loophole-letters.vercel.app/strudel>
-- 1 Year of Strudel Blog Post: <https://loophole-letters.vercel.app/strudel1year>
-- 2 Years of Strudel Blog Post: <https://strudel.cc/blog/#year-2>
+## Key Features
 
+- **Performance (Zen) Mode:** A completely distraction-free full-screen mode with transparent text editors designed specifically for live performances and projections.
+- **Visualizer Suite:** A suite of high-performance WebAudio visualizers (Waveform, Ridge/Waterfall, Circle, Heatmap) that react directly to the master audio output in real time.
+- **Stage Management:** Stages (projects) can be created, saved, and managed locally using an offline-first architecture powered by IndexedDB.
+- **Portable `.kals` Format:** An integrated import/export system for creating portable project packages. Stages can be zipped into `.kals` files complete with their code, history, and metadata.
+- **History Tracking:** Automatic snapshotting of your code whenever you play or evaluate, allowing you to instantly rollback your changes and browse your coding history.
+- **Custom Kāl Aesthetic:** A beautiful gold-and-black dark theme, featuring smooth micro-animations and typography designed for extended live coding sessions.
+
+## Acknowledgements
+
+Kāl Performance Station stands on the shoulders of giants. We would like to extend our deepest gratitude to:
+- The **[Strudel Project](https://strudel.cc/)** and its maintainers for creating an incredible JavaScript live coding engine.
+- The **[TidalCycles](https://tidalcycles.org)** community for pioneering expressive algorithmic composition.
 
 ## Running Locally
 
@@ -27,26 +34,13 @@ After cloning the project, you can run the REPL locally:
    pnpm dev
    ```
 
-## Using Strudel In Your Project
+## Using Strudel / Kāl Engine
 
-This project is organized into many [packages](./packages), which are also available on [npm](https://www.npmjs.com/search?q=%40strudel).
-
+This project contains many packages, which are available on npm.
 Read more about how to use these in your own project [here](https://strudel.cc/technical-manual/project-start).
 
-You will need to abide by the terms of the [GNU Affero Public Licence v3](LICENSE). As such, Strudel code can only be shared within free/open source projects under the same license -- see the license for details.
+## License
+
+This project is distributed under the [GNU Affero General Public License v3](LICENSE). As such, code can only be shared within free/open source projects under the same license -- see the license for details.
 
 Licensing info for the default sound banks can be found over on the [dough-samples](https://github.com/felixroos/dough-samples/blob/main/README.md) repository.
-
-## Contributing
-
-There are many ways to contribute to this project! See [contribution guide](./CONTRIBUTING.md). You can find the full list of contributors [here](https://codeberg.org/uzu/strudel/activity/contributors).
-
-## Community
-
-There is a #strudel channel on the TidalCycles discord: <https://discord.com/invite/HGEdXmRkzT>
-
-You can also ask questions and find related discussions on the tidal club forum: <https://club.tidalcycles.org/>
-
-The discord and forum is shared with the haskell (tidal) and python (vortex) siblings of this project.
-
-We also have a mastodon account: <a rel="me" href="https://social.toplap.org/@strudel">social.toplap.org/@strudel</a>

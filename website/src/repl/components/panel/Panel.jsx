@@ -78,7 +78,6 @@ export function MainPanel({ context, isEmbedded = false, className }) {
           {!isZen && (
             <div className="flex items-center gap-6">
               <div className="flex items-center gap-2">
-                {isPerformanceMode && <span className="font-label-uppercase text-[9px] tracking-[0.2em] text-on-surface-variant/50">STAGE</span>}
                 <span className="font-cinzel text-sm font-bold tracking-[0.2em] uppercase text-primary drop-shadow-[0_0_12px_rgba(255,242,204,0.3)] truncate max-w-[300px]">
                   {projectName}
                 </span>

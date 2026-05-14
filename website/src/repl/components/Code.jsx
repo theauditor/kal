@@ -1,14 +1,19 @@
+import cx from '@src/cx.mjs';
+
 // type Props = {
 //   containerRef:  React.MutableRefObject<HTMLElement | null>,
 //   editorRef:  React.MutableRefObject<HTMLElement | null>,
 //   init: () => void
 // }
 export function Code(Props) {
-  const { editorRef, containerRef, init } = Props;
+  const { editorRef, containerRef, init, isZen } = Props;
 
   return (
     <section
-      className={'code-container cursor-text pb-0 overflow-auto grow z-10 font-mono scroll-hide bg-surface-container-lowest'}
+      className={cx(
+        'code-container cursor-text pb-0 overflow-auto grow z-10 font-mono scroll-hide',
+        isZen ? 'bg-transparent text-white drop-shadow-md' : 'bg-surface-container-lowest'
+      )}
       ref={(el) => {
         containerRef.current = el;
         if (!editorRef.current) {
