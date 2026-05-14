@@ -12,11 +12,11 @@ export default function EmbeddedReplEditor(Props) {
   const { context, ...editorProps } = Props;
   const { pending, started, handleTogglePlay, containerRef, editorRef, error, init } = context;
   return (
-    <div className="h-full flex flex-col relative" {...editorProps}>
+    <div className="h-full flex flex-col relative bg-background text-on-background selection:bg-surface-tint/30" {...editorProps}>
       <Loader active={pending} />
-      <MainPanel context={context} embedded={true} />
+      <MainPanel context={context} isEmbedded={true} />
       <BigPlayButton started={started} handleTogglePlay={handleTogglePlay} />
-      <div className="grow flex relative overflow-hidden">
+      <div className="grow flex relative overflow-hidden bg-surface-container-lowest">
         <Code containerRef={containerRef} editorRef={editorRef} init={init} />
       </div>
       <UserFacingErrorMessage error={error} />

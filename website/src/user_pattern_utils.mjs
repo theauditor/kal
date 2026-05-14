@@ -3,7 +3,7 @@ import { useStore } from '@nanostores/react';
 import { logger } from '@strudel/core';
 import { nanoid } from 'nanoid';
 import { settingsMap } from './settings.mjs';
-import { confirmDialog, parseJSON, supabase } from './repl/util.mjs';
+import { confirmDialog, parseJSON, code2hash } from './repl/util.mjs';
 
 export let $publicPatterns = atom([]);
 export let $featuredPatterns = atom([]);
@@ -47,50 +47,9 @@ export const setViewingPatternData = (data) => {
 function parsePageNum(page) {
   return isNaN(page) ? 0 : page;
 }
-export function loadPublicPatterns(page) {
-  page = parsePageNum(page);
-  const offset = page * patternQueryLimit;
-  return supabase
-    .from('code_v1')
-    .select()
-    .eq('public', true)
-    .range(offset, offset + patternQueryLimit)
-    .order('id', { ascending: false });
-}
-
-export function loadFeaturedPatterns(page = 0) {
-  page = parsePageNum(page);
-  const offset = page * patternQueryLimit;
-  return supabase
-    .from('code_v1')
-    .select()
-    .eq('featured', true)
-    .range(offset, offset + patternQueryLimit)
-    .order('id', { ascending: false });
-}
-
-export async function loadAndSetPublicPatterns(page) {
-  const p = await loadPublicPatterns(page);
-  const data = p?.data;
-  const pats = {};
-  data?.forEach((data, key) => (pats[data.id ?? key] = data));
-  $publicPatterns.set(pats);
-}
-export async function loadAndSetFeaturedPatterns(page) {
-  const p = await loadFeaturedPatterns(page);
-  const data = p?.data;
-  const pats = {};
-  data?.forEach((data, key) => (pats[data.id ?? key] = data));
-  $featuredPatterns.set(pats);
-}
-
 export async function loadDBPatterns() {
-  try {
-    await loadAndSetPublicPatterns();
-    await loadAndSetFeaturedPatterns();
-  } catch (err) {
-    console.error('error loading patterns', err);
-  }
+  // Database systems removed as requested.
+  return Promise.resolve();
 }
 
 // reason: https://codeberg.org/uzu/strudel/issues/857
@@ -126,10 +85,9 @@ export const userPattern = {
     return id != null && id.length > 0;
   },
 
-  create() {
-    const newID = createPatternID();
-    const code = defaultCode;
-    const data = { code, created_at: Date.now(), id: newID, collection: this.collection };
+  create(initialCode = defaultCode) {
+    const newID = createPatternID(initialCode);
+    const data = { code: initialCode, created_at: Date.now(), id: newID, collection: this.collection };
     return { id: newID, data };
   },
   createAndAddToDB() {
@@ -182,8 +140,9 @@ function setUserPatterns(obj) {
   return settingsMap.setKey('userPatterns', JSON.stringify(obj));
 }
 
-export const createPatternID = () => {
-  return nanoid(12);
+export const createPatternID = (code = '') => {
+  if (!code) return nanoid(8);
+  return code2hash(code).substring(0, 8);
 };
 
 export async function importPatterns(fileList) {

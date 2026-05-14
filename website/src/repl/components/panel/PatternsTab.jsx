@@ -1,8 +1,6 @@
 import {
   exportPatterns,
   importPatterns,
-  loadAndSetFeaturedPatterns,
-  loadAndSetPublicPatterns,
   patternFilterName,
   useActivePattern,
   useViewingPatternData,
@@ -220,54 +218,6 @@ function PatternPageWithPagination({ patterns, patternOnClick, context, paginati
   );
 }
 
-let featuredPageNum = 1;
-function FeaturedPatterns({ context }) {
-  const examplePatterns = useExamplePatterns();
-  const collections = examplePatterns.collections;
-  const patterns = collections.get(patternFilterName.featured);
-  const { patternAutoStart } = useSettings();
-  return (
-    <PatternPageWithPagination
-      patterns={patterns}
-      context={context}
-      initialPage={featuredPageNum}
-      patternOnClick={(id) => {
-        updateCodeWindow(context, { ...patterns[id], collection: patternFilterName.featured }, patternAutoStart);
-      }}
-      paginationOnChange={async (pageNum) => {
-        await loadAndSetFeaturedPatterns(pageNum - 1);
-        featuredPageNum = pageNum;
-      }}
-    />
-  );
-}
-
-let latestPageNum = 1;
-function LatestPatterns({ context }) {
-  const examplePatterns = useExamplePatterns();
-  const collections = examplePatterns.collections;
-  const patterns = collections.get(patternFilterName.public);
-  const { patternAutoStart } = useSettings();
-  return (
-    <PatternPageWithPagination
-      patterns={patterns}
-      context={context}
-      initialPage={latestPageNum}
-      patternOnClick={(id) => {
-        updateCodeWindow(context, { ...patterns[id], collection: patternFilterName.public }, patternAutoStart);
-      }}
-      paginationOnChange={async (pageNum) => {
-        await loadAndSetPublicPatterns(pageNum - 1);
-        latestPageNum = pageNum;
-      }}
-    />
-  );
-}
-
-function PublicPatterns({ context }) {
-  const { patternFilter } = useSettings();
-  if (patternFilter === patternFilterName.featured) {
-    return <FeaturedPatterns context={context} />;
-  }
-  return <LatestPatterns context={context} />;
+export function PublicPatterns({ context }) {
+  return <div className="p-4 text-gray-500 italic">Community patterns disabled.</div>;
 }

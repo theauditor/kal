@@ -1,3 +1,5 @@
+@import url('https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600&family=Cinzel+Decorative&display=swap');
+
 @font-face {
   font-family: 'PressStart';
   src: url('/fonts/PressStart2P/PressStart2P-Regular.ttf');
@@ -67,8 +69,30 @@
 :root {
   --app-height: 100vh;
   --app-width: 100vw;
+  --background: #0a0a0a;
+  --foreground: #f0d080;
+  --primary: #c9a84c;
+  --secondary: #a07830;
+  --selection: rgba(201, 168, 76, 0.3);
+  --lineHighlight: rgba(201, 168, 76, 0.05);
+  --caret: #f0d080;
+}
+
+.glass-panel {
+  background: rgba(28, 20, 8, 0.6);
+  backdrop-filter: blur(20px);
+  border: 1px solid rgba(201, 168, 76, 0.2);
+  box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.8);
+}
+
+.code-glow-line {
+  background: linear-gradient(90deg, rgba(201, 168, 76, 0.1) 0%, rgba(201, 168, 76, 0) 100%);
+}
+
+.scroll-hide::-webkit-scrollbar {
+  display: none;
 }
 
 #console-tab {
-  font-family: BigBlueTerminal, monospace;
+  font-family: 'JetBrains Mono', monospace;
 }

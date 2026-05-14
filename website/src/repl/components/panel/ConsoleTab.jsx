@@ -15,8 +15,8 @@ export function ConsoleTab() {
     }
   }, [log]);
   return (
-    <div id="console-tab" className="break-all w-full h-full" style={{ fontFamily }}>
-      <div className="h-full w-full overflow-auto space-y-1 p-2 rounded-md" ref={scrollRef}>
+    <div id="console-tab" className="break-all w-full h-full font-mono bg-surface-container-low/20" style={{ fontFamily: "'JetBrains Mono', monospace" }}>
+      <div className="h-full w-full overflow-auto space-y-1 p-4 scroll-hide" ref={scrollRef}>
         {' '}
         {/* bg-background */}
         {log.map((l, i) => {
@@ -26,14 +26,15 @@ export function ConsoleTab() {
             <div
               key={l.id}
               className={cx(
-                'whitespace-nowrap',
-                l.type === 'error' ? 'text-background bg-foreground' : 'text-foreground',
-                l.type === 'highlight' && 'underline',
+                'whitespace-nowrap text-[11px] py-0.5 border-b border-outline-variant/10',
+                l.type === 'error' ? 'text-error bg-error-container/20 px-2 rounded' : 'text-on-surface-variant/80',
+                l.type === 'highlight' && 'text-surface-tint font-bold',
               )}
               style={color ? { color } : {}}
             >
+              <span className="opacity-40 mr-2 select-none">[{new Date().toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}]</span>
               <span dangerouslySetInnerHTML={{ __html: message }} className="whitespace-nowrap" />
-              {l.count ? ` (${l.count})` : ''}
+              {l.count ? <span className="ml-2 text-[9px] bg-outline-variant/20 px-1 rounded">×{l.count}</span> : ''}
             </div>
           );
         })}

@@ -48,7 +48,7 @@ export const defaultSettings = {
   isTabIndentationEnabled: false,
   isMultiCursorEnabled: false,
   isBlockBasedEvalEnabled: false,
-  theme: 'strudelTheme',
+  theme: 'kal-default',
   fontFamily: 'monospace',
   fontSize: 18,
   latestCode: '',
@@ -80,6 +80,12 @@ const instance = parseInt(search?.get('instance') ?? '0');
 const settings_key = `strudel-settings${instance > 0 ? instance : ''}`;
 
 export const settingsMap = persistentMap(settings_key, defaultSettings);
+
+if (typeof window !== 'undefined') {
+  if (settingsMap.get().theme === 'kaal') {
+    settingsMap.setKey('theme', 'kal-default');
+  }
+}
 
 export const $settings = computed(settingsMap, (state) => {
   const userPatterns = JSON.parse(state.userPatterns);

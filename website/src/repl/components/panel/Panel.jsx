@@ -1,7 +1,9 @@
+import { KaalLogoReact } from '@branding/KaalLogoReact';
 import { Bars3Icon, PlayIcon, StopIcon, XMarkIcon } from '@heroicons/react/16/solid';
 import cx from '@src/cx.mjs';
 import { StrudelIcon } from '@src/repl/components/icons/StrudelIcon';
 import { useSettings, setIsZen, setIsPanelOpened, setActiveFooter as setTab } from '../../../settings.mjs';
+import { useViewingPatternData } from '../../../user_pattern_utils.mjs';
 import '../../Repl.css';
 import { useLogger } from '../useLogger';
 import { ConsoleTab } from './ConsoleTab';
@@ -20,14 +22,15 @@ const baseNoTrailing = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL
 
 export function LogoButton({ context, isEmbedded }) {
   const { started } = context;
-  const { isZen, isCSSAnimationDisabled, fontFamily } = useSettings();
+  const { isZen, isCSSAnimationDisabled } = useSettings();
+  const isPerformanceMode = typeof window !== 'undefined' && window.location.pathname.includes('/p');
   return (
     <div
       className={cx(
-        'mt-[1px]',
-        started && !isCSSAnimationDisabled && 'animate-spin',
-        'cursor-pointer text-blue-500',
-        isZen && 'fixed top-2 right-4',
+        'flex items-center justify-center transition-all duration-700',
+        started && !isCSSAnimationDisabled && 'scale-110',
+        'cursor-pointer z-[200]',
+        isZen ? 'fixed top-2 left-4' : 'relative'
       )}
       onClick={() => {
         if (!isEmbedded) {
@@ -35,72 +38,58 @@ export function LogoButton({ context, isEmbedded }) {
         }
       }}
     >
-      <span className="block text-foreground rotate-90">
-        <StrudelIcon className="w-5 h-5 fill-foreground" />
-      </span>
+      <div className={cx(
+        "absolute inset-0 bg-primary opacity-0 blur-2xl transition-opacity duration-1000",
+        started && "opacity-20"
+      )}></div>
+      <KaalLogoReact 
+        size={32} 
+        className={cx(
+          "relative z-10 transition-all duration-700",
+          started && !isCSSAnimationDisabled && "drop-shadow-[0_0_15px_rgba(201,168,76,0.6)]"
+        )} 
+      />
     </div>
   );
 }
 
 export function MainPanel({ context, isEmbedded = false, className }) {
   const { isZen, isButtonRowHidden, fontFamily } = useSettings();
-  let loc = window.location;
-  let ver = 'unofficial';
-  let hot = false;
-  let b = loc.hostname.match(/^(.+)\.(strudel)/);
-  if (/(strudel.cc$)/.test(loc.hostname)) {
-    // if there's no text before 'strudel', it's warm, otherwise use the text before strudel
-    ver = b ? b[1] : 'warm';
-  } else {
-    // match both versions of localhost
-    if (/(localhost)|(127.0.0.1)/.test(loc.hostname)) ver = 'dev';
-  }
-  let pr = ver.match(/pr-([0-9]+)/);
-  if (pr) {
-    pr = pr[1];
-    ver = `hot: ${pr}`;
-    hot = true;
-    pr = `https://codeberg.org/uzu/strudel/pulls/${pr}`;
-  }
+  const viewingPattern = useViewingPatternData();
+  const projectName = viewingPattern?.name || 'Untitled Project';
+  const isPerformanceMode = typeof window !== 'undefined' && window.location.pathname.includes('/p');
 
   return (
     <nav
       id="header"
       className={cx(
-        'flex-none text-black z-[100] text-sm select-none min-h-10 max-h-10',
-        !isZen && !isEmbedded && 'border-b border-muted bg-lineHighlight',
-        isZen ? 'h-12 w-8 fixed top-0 left-0' : '',
+        'flex-none z-[100] select-none h-11',
+        !isZen && isPerformanceMode && 'bg-surface-container-low border-b-[1px] border-primary/40 shadow-lg',
+        !isZen && !isPerformanceMode && 'bg-surface-container-low border-b border-outline-variant shadow-lg',
+        isZen ? 'fixed top-0 left-0 w-8' : 'w-full relative',
         'flex items-center',
         className,
       )}
-      style={{ fontFamily }}
+      style={{ fontFamily: 'Sora, sans-serif' }}
     >
-      <div className={cx('flex w-full justify-between')}>
-        <div className="px-3 py-1 flex space-x-2 select-none">
-          <h1
-            onClick={() => {
-              if (isEmbedded) window.open(window.location.href.replace('embed', ''));
-            }}
-            className={cx(
-              isEmbedded ? 'text-l cursor-pointer' : 'text-xl',
-              'text-foreground font-bold flex space-x-2 items-center',
-            )}
-          >
-            <LogoButton context={context} isEmbedded={isEmbedded} />
-            {!isZen && (
-              <div className="space-x-2 flex items-baseline">
-                <span className="hidden sm:block">strudel</span>
-                <span className="text-sm font-medium hidden sm:block">REPL</span>
-                {!hot ? (
-                  <span className="text-sm font-medium hidden sm:block">({ver})</span>
-                ) : (
-                  <a className="hover:opacity-50" href={pr} target="_blank">
-                    <span className="text-sm font-medium hidden sm:block">({ver})</span>
-                  </a>
-                )}
+      <div className={cx('flex w-full justify-between h-full')}>
+        <div className="px-margin-desktop flex items-center gap-6 select-none relative h-full">
+          <LogoButton context={context} isEmbedded={isEmbedded} />
+          {!isZen && (
+            <div className="flex items-center gap-6">
+              <div className="flex items-center gap-2">
+                {isPerformanceMode && <span className="font-label-uppercase text-[9px] tracking-[0.2em] text-on-surface-variant/50">STAGE</span>}
+                <span className="font-cinzel text-sm font-bold tracking-[0.2em] uppercase text-primary drop-shadow-[0_0_12px_rgba(255,242,204,0.3)] truncate max-w-[300px]">
+                  {projectName}
+                </span>
               </div>
-            )}
-          </h1>
+              <div className="h-4 w-[1px] bg-outline-variant/60"></div>
+              <nav className="hidden sm:flex items-center gap-6">
+                <a className="font-label-uppercase text-[9px] tracking-[0.2em] text-primary border-b border-primary pb-0.5" href="#">REPL</a>
+                <a className="font-label-uppercase text-[9px] tracking-[0.2em] text-primary/70 hover:text-primary transition-all duration-300" href="/">STATION</a>
+              </nav>
+            </div>
+          )}
         </div>
         {!isZen && (
           <div className="flex grow justify-end">
@@ -122,43 +111,46 @@ export function Footer({ context, isEmbedded = false }) {
 }
 
 function MainMenu({ context, isEmbedded = false, className }) {
-  const { started, pending, isDirty, activeCode, handleTogglePlay, handleEvaluate, handleShare } = context;
+  const { started, pending, isDirty, activeCode, handleTogglePlay, handleEvaluate, handleExportKals } = context;
   const { isCSSAnimationDisabled } = useSettings();
+  const btnClass = 'px-3 py-1 font-label-uppercase text-label-uppercase transition-all duration-200 flex items-center gap-2';
+  
   return (
-    <div className={cx('flex text-sm max-w-full shrink-0 overflow-hidden text-foreground px-2 h-10', className)}>
+    <div className={cx('flex items-center gap-4 px-margin-desktop h-full', className)}>
       <button
         onClick={handleTogglePlay}
         title={started ? 'stop' : 'play'}
-        className={cx('px-2 hover:opacity-50', !started && !isCSSAnimationDisabled && 'animate-pulse')}
+        className={cx(btnClass, 'text-on-surface hover:text-surface-tint', !started && !isCSSAnimationDisabled && 'animate-pulse')}
       >
-        <span className={cx('flex items-center space-x-2')}>
-          {started ? <StopIcon className="w-5 h-5" /> : <PlayIcon className="w-5 h-5" />}
-          {!isEmbedded && <span>{pending ? '...' : started ? 'stop' : 'play'}</span>}
-        </span>
+        {started ? <StopIcon className="w-5 h-5" /> : <PlayIcon className="w-5 h-5" />}
+        {!isEmbedded && <span>{pending ? '...' : started ? 'STOP' : 'PLAY'}</span>}
       </button>
+      
       <button
         onClick={handleEvaluate}
         title="update"
-        className={cx('flex items-center space-x-1 px-2', !isDirty || !activeCode ? 'opacity-50' : 'hover:opacity-50')}
+        className={cx(btnClass, !isDirty || !activeCode ? 'opacity-30 cursor-not-allowed' : 'text-surface-tint hover:opacity-80')}
       >
-        {!isEmbedded && <span>update</span>}
+        {!isEmbedded && <span>UPDATE</span>}
       </button>
+
       {!isEmbedded && (
         <button
-          title="share"
-          className={cx('cursor-pointer hover:opacity-50 flex items-center space-x-1 px-2')}
-          onClick={handleShare}
+          title="export"
+          className={cx(btnClass, 'text-on-surface-variant hover:text-surface-tint')}
+          onClick={handleExportKals}
         >
-          <span>share</span>
+          <span>EXPORT</span>
         </button>
       )}
+
       {!isEmbedded && (
         <a
           title="learn"
           href={`${baseNoTrailing}/workshop/getting-started/`}
-          className={cx('hover:opacity-50 flex items-center space-x-1', !isEmbedded ? 'p-2' : 'px-2')}
+          className={cx(btnClass, 'text-on-surface-variant hover:text-surface-tint')}
         >
-          <span>learn</span>
+          <span>LEARN</span>
         </a>
       )}
     </div>
@@ -186,15 +178,15 @@ export function BottomPanel({ context }) {
     <PanelNav
       className={cx(
         isPanelOpen ? `min-h-[360px] max-h-[360px]` : 'min-h-10 max-h-10',
-        'overflow-hidden flex flex-col relative',
+        'overflow-hidden flex flex-col relative glass-panel rounded-t-xl',
       )}
     >
-      <div className="flex justify-between min-h-10 max-h-10 grid-cols-2 items-center border-t border-muted">
+      <div className="flex justify-between min-h-10 max-h-10 grid-cols-2 items-center border-t border-outline-variant">
         <PanelCloseButton />
-        <Tabs setTab={setTab} tab={tab} className={cx(isPanelOpen && 'border-l border-muted')} />
+        <Tabs setTab={setTab} tab={tab} className={cx(isPanelOpen && 'border-l border-outline-variant')} />
       </div>
       {isPanelOpen && (
-        <div className="w-full h-full overflow-auto border-t border-muted">
+        <div className="w-full h-full overflow-auto border-t border-outline-variant p-4">
           <PanelContent context={context} tab={tab} />
         </div>
       )}
@@ -212,16 +204,16 @@ export function RightPanel({ context }) {
     <PanelNav
       settings={settings}
       className={cx(
-        'border-l border-muted shrink-0 h-full overflow-hidden',
+        'shrink-0 h-full overflow-hidden glass-panel rounded-l-xl',
         isPanelOpen ? `min-w-[min(600px,100vw)] max-w-[min(600px,80vw)]` : 'min-w-12 max-w-12',
       )}
     >
       <div className={cx('flex flex-col h-full')}>
-        <div className="flex justify-between w-full overflow-hidden border-b border-muted min-h-10 max-h-10">
+        <div className="flex justify-between w-full overflow-hidden border-b border-outline-variant min-h-10 max-h-10">
           <PanelCloseButton />
-          <Tabs setTab={setTab} tab={tab} className="border-l border-muted" />
+          <Tabs setTab={setTab} tab={tab} className="border-l border-outline-variant" />
         </div>
-        <div className="overflow-auto h-full">
+        <div className="overflow-auto h-full p-6">
           <PanelContent context={context} tab={tab} />
         </div>
       </div>
@@ -252,7 +244,7 @@ function PanelNav({ children, className, ...props }) {
         }
       }}
       aria-label="Menu Panel"
-      className={cx('h-full bg-lineHighlight group overflow-x-auto', className)}
+      className={cx('h-full bg-surface-container-low/40 group overflow-x-auto', className)}
       {...props}
     >
       {children}

@@ -31,18 +31,24 @@ const baseNoTrailing = BASE_URL.endsWith('/') ? BASE_URL.slice(0, -1) : BASE_URL
 <!-- this does not work for some reason: -->
 <!-- <style is:global define:vars={strudelTheme}></style> -->
 <!-- the following variables are just a fallback to make sure everything is readable without JS -->
+<!-- Google Fonts -->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500&family=Sora:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1@display=swap" rel="stylesheet" />
+
 <style is:global>
   :root {
     color-scheme: dark;
-    --background: #222;
-    --lineBackground: #22222299;
-    --foreground: #fff;
-    --caret: #ffcc00;
-    --selection: rgba(128, 203, 196, 0.5);
-    --selectionMatch: #036dd626;
-    --lineHighlight: #00000050;
+    --background: #0b141e;
+    --lineBackground: #131c2699;
+    --foreground: #dae3f1;
+    --caret: #00dbe9;
+    --selection: rgba(0, 219, 233, 0.3);
+    --selectionMatch: #00dbe926;
+    --lineHighlight: #222b3550;
     --gutterBackground: transparent;
-    --gutterForeground: #8a919966;
+    --gutterForeground: #849495;
   }
 </style>
 {pwaInfo && <Fragment set:html={pwaInfo.webManifest.linkTag} />}

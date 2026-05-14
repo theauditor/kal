@@ -1,0 +1,14 @@
+---
+import HeadCommon from '../../components/HeadCommon.astro';
+import { PerformanceStation } from '../../components/PerformanceStation';
+---
+
+<html lang="en" class="m-0 dark">
+  <head>
+    <HeadCommon />
+    <title>KĀL | Performance Station</title>
+  </head>
+  <body class="h-app-height bg-[#0a0a0a] m-0 overflow-hidden">
+    <PerformanceStation client:only="react" />
+  </body>
+</html>

@@ -8,6 +8,8 @@
     "baseUrl": ".",
     "paths": {
       "@components/*": ["src/components/*"],
+      "@branding/*": ["src/components/branding/*"],
+      "@assets/*": ["src/assets/*"],
       "@src/*": ["src/*"],
     }
   }

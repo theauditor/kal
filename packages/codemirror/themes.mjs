@@ -1,4 +1,8 @@
 import strudelTheme, { settings as strudelThemeSettings } from './themes/strudel-theme.mjs';
+import kaal, { settings as kaalSettings } from './themes/kaal.mjs';
+import kalDefault, { settings as kalDefaultSettings } from './themes/kal-default.mjs';
+import kalDark, { settings as kalDarkSettings } from './themes/kal-dark.mjs';
+import kalLight, { settings as kalLightSettings } from './themes/kal-light.mjs';
 import bluescreen, { settings as bluescreenSettings } from './themes/bluescreen.mjs';
 import blackscreen, { settings as blackscreenSettings } from './themes/blackscreen.mjs';
 import whitescreen, { settings as whitescreenSettings } from './themes/whitescreen.mjs';
@@ -43,6 +47,10 @@ import noctisLilac, { settings as noctisLilacSettings } from './themes/noctisLil
 import { setTheme } from '@strudel/draw';
 export const themes = {
   strudelTheme,
+  kaal,
+  'kal-default': kalDefault,
+  'kal-dark': kalDark,
+  'kal-light': kalLight,
   algoboy,
   archBtw,
   androidstudio,
@@ -85,6 +93,10 @@ export const themes = {
 
 export const settings = {
   strudelTheme: strudelThemeSettings,
+  kaal: kaalSettings,
+  'kal-default': kalDefaultSettings,
+  'kal-dark': kalDarkSettings,
+  'kal-light': kalLightSettings,
   bluescreen: bluescreenSettings,
   bluescreenlight: bluescreenlightsettings,
   blackscreen: blackscreenSettings,

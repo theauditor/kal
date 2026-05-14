@@ -1,10 +1,8 @@
 import jsdoc from '../../doc.json';
 import { autocompletion } from '@codemirror/autocomplete';
 import { h } from './html';
-//TODO: fix tonal scale import
-// import { Scale } from '@tonaljs/tonal';
-// import { soundMap } from '@strudel/webaudio';
-let soundMap = undefined;
+import { Scale } from '@tonaljs/tonal';
+import { soundMap } from 'superdough';
 import { complex } from '@strudel/tonal';
 
 const escapeHtml = (str) => {
@@ -94,13 +92,13 @@ export function bankCompletions() {
     .map((name) => ({ label: name, type: 'bank' }));
 }
 
-// Attempt to get all scale names from Tonal TODO: FIX IMPORT
+// Attempt to get all scale names from Tonal
 let scaleCompletions = [];
-// try {
-//   scaleCompletions = (Scale.names ? Scale.names() : []).map((name) => ({ label: name, type: 'scale' }));
-// } catch (e) {
-//   console.warn('[autocomplete] Could not load scale names from Tonal:', e);
-// }
+try {
+  scaleCompletions = (Scale.names ? Scale.names() : []).map((name) => ({ label: name, type: 'scale' }));
+} catch (e) {
+  console.warn('[autocomplete] Could not load scale names from Tonal:', e);
+}
 
 // Valid mode values for voicing
 const modeCompletions = [
@@ -250,7 +248,7 @@ function scaleHandler(context) {
 // Cached regex patterns for soundHandler
 const SOUND_NO_QUOTES_REGEX = /(s|sound)\(\s*$/;
 const SOUND_WITH_QUOTES_REGEX = /(s|sound)\(\s*['"][^'"]*$/;
-const SOUND_FRAGMENT_MATCH_REGEX = /(?:[\s[{(<])([\w]*)$/;
+const SOUND_FRAGMENT_MATCH_REGEX = /(?:[\s\[\{\(\<\,\|\*\!\/\:\]\}\)\>])([\w]*)$/;
 
 function soundHandler(context) {
   // First check for sound context without quotes - block with empty completions
