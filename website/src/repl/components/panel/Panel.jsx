@@ -29,6 +29,7 @@ export function LogoButton({ context, isEmbedded }) {
   const isPerformanceMode = typeof window !== 'undefined' && window.location.pathname.includes('/p');
   return (
     <div
+      role="button"
       className={cx(
         'flex items-center justify-center transition-all duration-700',
         started && !isCSSAnimationDisabled && 'scale-110',
