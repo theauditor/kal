@@ -1,6 +1,7 @@
 import React from 'react';
 import cx from '@src/cx.mjs';
 import { useViewingPatternData } from '@src/user_pattern_utils.mjs';
+import { XMarkIcon, ClockIcon, ArrowPathIcon } from '@heroicons/react/24/outline';
 
 export function HistoryPanel({ context }) {
   const { handleRollback, setShowHistory } = context;
@@ -20,13 +21,13 @@ export function HistoryPanel({ context }) {
             className="text-on-surface-variant/40 hover:text-primary transition-colors flex items-center gap-1 group"
           >
             <span className="text-[8px] font-mono opacity-0 group-hover:opacity-100 transition-opacity">CLOSE</span>
-            <span className="material-symbols-outlined text-[18px]">close</span>
+            <XMarkIcon className="w-4 h-4" />
           </button>
         </div>
         
         <div className="flex items-center justify-between">
           <h4 className="font-label-uppercase text-[9px] text-on-surface-variant/40 uppercase tracking-widest flex items-center gap-2">
-            <span className="material-symbols-outlined text-[12px]">history</span>
+            <ClockIcon className="w-3 h-3" />
             Snapshots
           </h4>
           <span className="font-mono text-[9px] text-primary/60">{history.length} versions</span>
@@ -37,7 +38,7 @@ export function HistoryPanel({ context }) {
         <div className="flex-grow overflow-y-auto pr-2 -mr-2 space-y-3 scroll-hide">
           {sortedHistory.length === 0 ? (
             <div className="h-32 flex flex-col items-center justify-center border border-dashed border-outline-variant/30 rounded-lg bg-surface-container-low/20">
-              <span className="material-symbols-outlined text-on-surface-variant/10 text-[32px] mb-2">history</span>
+              <ClockIcon className="w-8 h-8 text-on-surface-variant/10 mb-2" />
               <span className="text-[10px] text-on-surface-variant/30 font-mono text-center px-4">No snapshots yet.<br/>Press Play to save your first state.</span>
             </div>
           ) : (

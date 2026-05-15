@@ -1,6 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { analysers, getAnalyzerData, getAnalyserById } from '@strudel/webaudio';
 import { useSettings, setVisualizerMode } from '@src/settings.mjs';
+import { ChartBarIcon, Squares2X2Icon, ViewColumnsIcon, VariableIcon } from '@heroicons/react/24/outline';
 
 // --- Waveform (Existing) ---
 export function WaveformVisualizer({ started, color = '#c9a84c' }) {
@@ -10,6 +11,15 @@ export function WaveformVisualizer({ started, color = '#c9a84c' }) {
   const draw = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = Math.floor(canvas.clientWidth * dpr);
+    const displayHeight = Math.floor(canvas.clientHeight * dpr);
+    if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+      canvas.width = displayWidth;
+      canvas.height = displayHeight;
+    }
+
     const ctx = canvas.getContext('2d');
     let analyser = analysers[1];
     if (!analyser && started) analyser = getAnalyserById(1);
@@ -44,75 +54,124 @@ export function WaveformVisualizer({ started, color = '#c9a84c' }) {
     return () => cancelAnimationFrame(requestRef.current);
   }, [started, color]);
 
-  return <canvas ref={canvasRef} className="w-full h-full" width={400} height={400} />;
+  return <canvas ref={canvasRef} className="w-full h-full" />;
 }
 
-// --- Ridge / Waterfall ---
+// --- Ridge / Waterfall (Isometric 3D Terrain) ---
 export function RidgeVisualizer({ started, color = '#c9a84c' }) {
   const canvasRef = useRef(null);
   const requestRef = useRef();
   const historyRef = useRef([]);
 
+  // Golden palette matching the Kāl theme
+  const RIDGE_COLOR = { r: 201, g: 168, b: 76 };
+  const MAX_LINES = 30;
+  const SAMPLE_COUNT = 80;
+
+  const drawBorder = (ctx, w, h, dpr) => {
+    const pad = 6 * dpr;
+    const radius = 14 * dpr;
+    ctx.strokeStyle = `rgba(${RIDGE_COLOR.r}, ${RIDGE_COLOR.g}, ${RIDGE_COLOR.b}, 0.18)`;
+    ctx.lineWidth = 1.2 * dpr;
+    ctx.beginPath();
+    ctx.roundRect(pad, pad, w - pad * 2, h - pad * 2, radius);
+    ctx.stroke();
+  };
+
+  const getIsometricParams = (t, w, h) => {
+    // t = 0 (front/bottom-right) to 1 (back/top-left)
+    // Rotated 45° CW: viewer looks from bottom-right corner
+    // Lines shift LEFT and UP as they recede into the distance
+    const yBase = h * 0.92 - t * h * 0.68;
+    const xEnd = w * 0.94 - t * w * 0.14;
+    const lineW = w * 0.78 * (1 - t * 0.38);
+    const xStart = xEnd - lineW;
+    const ampScale = 110 * (1 - t * 0.45);
+    return { yBase, xStart, lineW, ampScale };
+  };
+
   const draw = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = Math.floor(canvas.clientWidth * dpr);
+    const displayHeight = Math.floor(canvas.clientHeight * dpr);
+    if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+      canvas.width = displayWidth;
+      canvas.height = displayHeight;
+    }
+
     const ctx = canvas.getContext('2d');
+    const w = canvas.width;
+    const h = canvas.height;
     let analyser = analysers[1];
     if (!analyser && started) analyser = getAnalyserById(1);
 
+    ctx.clearRect(0, 0, w, h);
+
     if (!started || !analyser) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      // Idle state — draw a subtle isometric grid
+      for (let i = 0; i < MAX_LINES; i++) {
+        const t = i / MAX_LINES;
+        const { yBase, xStart, lineW } = getIsometricParams(t, w, h);
+        const alpha = 0.07 * (1 - t * 0.6);
+        ctx.beginPath();
+        ctx.moveTo(xStart, yBase);
+        ctx.lineTo(xStart + lineW, yBase);
+        ctx.strokeStyle = `rgba(${RIDGE_COLOR.r}, ${RIDGE_COLOR.g}, ${RIDGE_COLOR.b}, ${alpha})`;
+        ctx.lineWidth = 0.6;
+        ctx.stroke();
+      }
+      drawBorder(ctx, w, h, dpr);
       requestRef.current = requestAnimationFrame(draw);
       return;
     }
 
-    const dataArray = getAnalyzerData('time', 1);
-    // Add current frame to history
-    historyRef.current.unshift(new Float32Array(dataArray));
-    if (historyRef.current.length > 80) historyRef.current.pop();
+    // Downsample for cleaner waveform lines
+    const rawData = getAnalyzerData('time', 1);
+    const step = Math.max(1, Math.floor(rawData.length / SAMPLE_COUNT));
+    const sampled = new Float32Array(SAMPLE_COUNT);
+    for (let i = 0; i < SAMPLE_COUNT; i++) {
+      sampled[i] = rawData[Math.min(i * step, rawData.length - 1)];
+    }
 
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    
-    // Draw from back to front for proper occlusion
+    // Reversed flow: newest data goes to back, oldest at front
+    historyRef.current.push(sampled);
+    if (historyRef.current.length > MAX_LINES) historyRef.current.shift();
+
+    // Draw ridges back-to-front for proper occlusion
     for (let index = historyRef.current.length - 1; index >= 0; index--) {
       const data = historyRef.current[index];
-      const depth = index / 80; // 0 (front) to 1 (back)
-      const alpha = Math.pow(1 - depth, 1.2); // Reduced fade
-      
-      // Perspective calculations
-      const scale = 0.3 + (1 - depth) * 0.7; // Wider scale
-      const yBase = canvas.height * 0.05 + (1 - depth) * canvas.height * 0.85; // Reduced top margin
-      const xOffset = (canvas.width * (1 - scale)) / 2;
-      
+      const t = index / MAX_LINES; // 0 = front, 1 = back
+      const { yBase, xStart, lineW, ampScale } = getIsometricParams(t, w, h);
+
+      // Build filled path
       ctx.beginPath();
-      ctx.lineWidth = 1 + (1 - depth) * 1.5;
-      
-      const sliceWidth = (canvas.width * scale) / data.length;
-      
-      // Fill under the curve
-      ctx.moveTo(xOffset, yBase);
-      
+      ctx.moveTo(xStart, yBase);
+
       for (let i = 0; i < data.length; i++) {
-        const v = data[i];
-        const x = xOffset + i * sliceWidth;
-        const y = yBase - (v * 100 * scale); // Taller peaks
+        const x = xStart + (i / data.length) * lineW;
+        const y = yBase - data[i] * ampScale;
         ctx.lineTo(x, y);
       }
-      
-      ctx.lineTo(xOffset + canvas.width * scale, yBase);
+
+      ctx.lineTo(xStart + lineW, yBase);
       ctx.closePath();
 
-      // Style
-      const r = parseInt(color.slice(1, 3), 16);
-      const g = parseInt(color.slice(3, 5), 16);
-      const b = parseInt(color.slice(5, 7), 16);
-      
-      ctx.fillStyle = `rgba(${r * 0.05}, ${g * 0.05}, ${b * 0.05}, ${alpha * 0.9})`;
+      // Solid dark fill for clean occlusion
+      ctx.fillStyle = 'rgba(5, 5, 10, 0.94)';
       ctx.fill();
-      
-      ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+
+      // Golden stroke with depth fade
+      const alpha = 0.25 + (1 - t) * 0.75;
+      ctx.strokeStyle = `rgba(${RIDGE_COLOR.r}, ${RIDGE_COLOR.g}, ${RIDGE_COLOR.b}, ${alpha})`;
+      ctx.lineWidth = 0.6 + (1 - t) * 0.9;
       ctx.stroke();
     }
+
+    // Border frame
+    drawBorder(ctx, w, h, dpr);
 
     requestRef.current = requestAnimationFrame(draw);
   };
@@ -122,7 +181,7 @@ export function RidgeVisualizer({ started, color = '#c9a84c' }) {
     return () => cancelAnimationFrame(requestRef.current);
   }, [started, color]);
 
-  return <canvas ref={canvasRef} className="w-full h-full" width={600} height={400} />;
+  return <canvas ref={canvasRef} className="w-full h-full" />;
 }
 
 // --- Circular Waveform ---
@@ -133,6 +192,15 @@ export function CircleVisualizer({ started, color = '#c9a84c' }) {
   const draw = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = Math.floor(canvas.clientWidth * dpr);
+    const displayHeight = Math.floor(canvas.clientHeight * dpr);
+    if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+      canvas.width = displayWidth;
+      canvas.height = displayHeight;
+    }
+
     const ctx = canvas.getContext('2d');
     let analyser = analysers[1];
     if (!analyser && started) analyser = getAnalyserById(1);
@@ -178,7 +246,7 @@ export function CircleVisualizer({ started, color = '#c9a84c' }) {
     return () => cancelAnimationFrame(requestRef.current);
   }, [started, color]);
 
-  return <canvas ref={canvasRef} className="w-full h-full" width={400} height={400} />;
+  return <canvas ref={canvasRef} className="w-full h-full" />;
 }
 
 // --- Heatmap / Spectrogram ---
@@ -199,12 +267,24 @@ export function HeatmapVisualizer({ started, color = '#c9a84c' }) {
   const draw = () => {
     const canvas = canvasRef.current;
     if (!canvas) return;
+
+    const dpr = window.devicePixelRatio || 1;
+    const displayWidth = Math.floor(canvas.clientWidth * dpr);
+    const displayHeight = Math.floor(canvas.clientHeight * dpr);
+    if (canvas.width !== displayWidth || canvas.height !== displayHeight) {
+      canvas.width = displayWidth;
+      canvas.height = displayHeight;
+    }
+
     const ctx = canvas.getContext('2d');
     let analyser = analysers[1];
     if (!analyser && started) analyser = getAnalyserById(1);
 
     if (!offscreenCanvasRef.current) {
         offscreenCanvasRef.current = document.createElement('canvas');
+        offscreenCanvasRef.current.width = canvas.width;
+        offscreenCanvasRef.current.height = canvas.height;
+    } else if (offscreenCanvasRef.current.width !== canvas.width || offscreenCanvasRef.current.height !== canvas.height) {
         offscreenCanvasRef.current.width = canvas.width;
         offscreenCanvasRef.current.height = canvas.height;
     }
@@ -244,7 +324,7 @@ export function HeatmapVisualizer({ started, color = '#c9a84c' }) {
     return () => cancelAnimationFrame(requestRef.current);
   }, [started, color]);
 
-  return <canvas ref={canvasRef} className="w-full h-full" width={400} height={400} />;
+  return <canvas ref={canvasRef} className="w-full h-full" />;
 }
 
 export function VisualizerSuite({ started, color }) {
@@ -253,10 +333,10 @@ export function VisualizerSuite({ started, color }) {
   const setMode = setVisualizerMode;
   
   const modes = [
-    { id: 'waveform', label: 'Wave', icon: 'show_chart' },
-    { id: 'ridge', label: 'Ridge', icon: 'Waterfall_Chart' },
-    { id: 'circle', label: 'Circle', icon: 'radio_button_checked' },
-    { id: 'heatmap', label: 'Heat', icon: 'grid_view' },
+    { id: 'waveform', label: 'Wave', icon: ChartBarIcon },
+    { id: 'ridge', label: 'Ridge', icon: ViewColumnsIcon },
+    { id: 'circle', label: 'Circle', icon: VariableIcon },
+    { id: 'heatmap', label: 'Heat', icon: Squares2X2Icon },
   ];
 
   const currentIndex = modes.findIndex(m => m.id === mode);
@@ -286,13 +366,15 @@ export function VisualizerSuite({ started, color }) {
           <button
             key={m.id}
             onClick={() => setMode(m.id)}
-            className={`w-1.5 h-1.5 rounded-full transition-all duration-300 ${
+            className={`p-1.5 rounded-lg transition-all duration-300 flex items-center justify-center ${
               mode === m.id 
-                ? 'bg-primary scale-150 shadow-[0_0_12px_rgba(201,168,76,0.6)]' 
-                : 'bg-white/10 hover:bg-white/30'
+                ? 'bg-primary/20 text-primary shadow-[0_0_12px_rgba(201,168,76,0.3)] border border-primary/30' 
+                : 'text-white/30 hover:text-white/60 hover:bg-white/5'
             }`}
             title={m.label}
-          />
+          >
+            <m.icon className="w-3 h-3" />
+          </button>
         ))}
       </div>
       

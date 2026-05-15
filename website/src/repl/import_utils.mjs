@@ -1,5 +1,6 @@
 import JSZip from 'jszip';
 import { userPattern } from '../user_pattern_utils.mjs';
+import { recordingsDB } from '../db.mjs';
 
 export async function importKals(file) {
   const zip = new JSZip();
@@ -26,14 +27,16 @@ export async function importKals(file) {
   const recordings = [];
   const recordingsFolder = zip.folder('recordings');
   if (recordingsFolder) {
-    for (const relativePath in recordingsFolder.files) {
+    const files = Object.keys(recordingsFolder.files);
+    for (const relativePath of files) {
       if (!recordingsFolder.files[relativePath].dir) {
         const fileObj = recordingsFolder.files[relativePath];
         const content = await fileObj.async('string');
+        const recId = Date.now() + Math.floor(Math.random() * 10000);
         recordings.push({
-          id: Date.now() + Math.floor(Math.random() * 10000), // Generate new ID
+          id: recId,
           projectId: metadata.id,
-          name: relativePath,
+          name: relativePath.split('/').pop(),
           content: content,
           date: metadata.date || new Date().toISOString(),
           duration: "Imported"
@@ -55,16 +58,12 @@ export async function importKals(file) {
     created_at: Date.now()
   };
 
-  userPattern.update(metadata.id, stageData);
+  await userPattern.update(metadata.id, stageData);
 
-  // Update recordings in localStorage
+  // Update recordings in DB
   if (recordings.length > 0) {
-    try {
-      const savedRecs = JSON.parse(localStorage.getItem('strudel-recordings') || '[]');
-      const updatedRecs = [...recordings, ...savedRecs];
-      localStorage.setItem('strudel-recordings', JSON.stringify(updatedRecs));
-    } catch (e) {
-      console.warn('Failed to save imported recordings', e);
+    for (const rec of recordings) {
+      await recordingsDB.setItem(rec.id.toString(), rec);
     }
   }
 

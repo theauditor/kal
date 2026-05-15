@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
-import { userPattern, getViewingPatternData, setViewingPatternData, setActivePattern } from '../user_pattern_utils.mjs';
+import { userPattern, getViewingPatternData, setViewingPatternData, setActivePattern, migrateToDB } from '../user_pattern_utils.mjs';
 import { AnimatedKaalLogo } from '@branding/AnimatedKaalLogo';
 import { importKals } from '../repl/import_utils.mjs';
 import { logger } from '@strudel/core';
 import { settingsMap } from '../settings.mjs';
 import { useStore } from '@nanostores/react';
+import { artistDB, recordingsDB } from '../db.mjs';
 
 // Desktop App Styles
 const styles = {
@@ -379,23 +380,41 @@ export function LandingPage() {
   const [showStageModal, setShowStageModal] = useState(false);
   const importInputRef = React.useRef(null);
   
-  const settings = useStore(settingsMap);
-  const artistProfile = settings.artistProfile;
+  const [artistProfile, setArtistProfile] = useState(null);
 
   useEffect(() => {
-    // Load initial data
-    const allStages = Object.values(userPattern.getAll()).sort((a, b) => b.created_at - a.created_at);
-    setStages(allStages);
-    
-    try {
-      const savedRecs = JSON.parse(localStorage.getItem('strudel-recordings') || '[]');
-      setRecordings(savedRecs);
-    } catch (e) {
-      console.warn('Failed to load recordings', e);
-    }
+    async function loadData() {
+      // Migrate if needed
+      await migrateToDB();
 
-    const timer = setTimeout(() => setIsLoading(false), 1500);
-    return () => clearTimeout(timer);
+      // Load initial data
+      const patterns = await userPattern.getAll();
+      const allStages = Object.values(patterns).sort((a, b) => b.created_at - a.created_at);
+      setStages(allStages);
+      
+      try {
+        // Load recordings from DB
+        const savedRecs = [];
+        await recordingsDB.iterate((value) => {
+          savedRecs.push(value);
+        });
+        setRecordings(savedRecs.sort((a, b) => new Date(b.date) - new Date(a.date)));
+      } catch (e) {
+        console.warn('Failed to load recordings', e);
+      }
+
+      // Load artist profile from DB
+      try {
+        const profile = await artistDB.getItem('profile');
+        setArtistProfile(profile);
+      } catch (e) {
+        console.warn('Failed to load artist profile', e);
+      }
+
+      setIsLoading(false);
+    }
+    
+    loadData();
   }, []);
 
   const filteredStages = stages.filter(p => 
@@ -416,13 +435,14 @@ export function LandingPage() {
     }
   };
 
-  const saveArtistProfile = (profile) => {
-    settingsMap.setKey('artistProfile', JSON.stringify(profile));
+  const saveArtistProfile = async (profile) => {
+    await artistDB.setItem('profile', profile);
+    setArtistProfile(profile);
     setShowArtistModal(false);
     setShowStageModal(true);
   };
 
-  const createStageWithMetadata = (metadata) => {
+  const createStageWithMetadata = async (metadata) => {
     const { id, data } = userPattern.create();
     const updatedData = { 
       ...data, 
@@ -430,41 +450,44 @@ export function LandingPage() {
       venue: metadata.venue,
       date: metadata.date,
       genre: metadata.genre,
-      artist: artistProfile ? JSON.parse(artistProfile) : null
+      artist: artistProfile
     };
-    userPattern.update(id, updatedData);
+    await userPattern.update(id, updatedData);
     window.location.href = `/p/#${id}`;
   };
 
-  const handleRename = (id, newName) => {
-    const stage = userPattern.getPatternData(id);
+  const handleRename = async (id, newName) => {
+    const stage = await userPattern.getPatternData(id);
     if (stage) {
-      userPattern.update(id, { ...stage, name: newName });
-      setStages(Object.values(userPattern.getAll()).sort((a, b) => b.created_at - a.created_at));
+      await userPattern.update(id, { ...stage, name: newName });
+      const patterns = await userPattern.getAll();
+      setStages(Object.values(patterns).sort((a, b) => b.created_at - a.created_at));
     }
   };
 
-  const handleUpdateCover = (id, coverArt) => {
-    const stage = userPattern.getPatternData(id);
+  const handleUpdateCover = async (id, coverArt) => {
+    const stage = await userPattern.getPatternData(id);
     if (stage) {
-      userPattern.update(id, { ...stage, coverArt });
-      setStages(Object.values(userPattern.getAll()).sort((a, b) => b.created_at - a.created_at));
+      await userPattern.update(id, { ...stage, coverArt });
+      const patterns = await userPattern.getAll();
+      setStages(Object.values(patterns).sort((a, b) => b.created_at - a.created_at));
       logger(`[stage] 🖼 cover art updated for "${stage.name || id}"`);
     }
   };
 
-  const handleDelete = (id) => {
+  const handleDelete = async (id) => {
     if (confirm('Delete stage?')) {
-      userPattern.delete(id);
-      setStages(Object.values(userPattern.getAll()).sort((a, b) => b.created_at - a.created_at));
+      await userPattern.delete(id);
+      const patterns = await userPattern.getAll();
+      setStages(Object.values(patterns).sort((a, b) => b.created_at - a.created_at));
     }
   };
 
-  const handleDeleteRecording = (id) => {
+  const handleDeleteRecording = async (id) => {
     if (confirm('Delete recording?')) {
+      await recordingsDB.removeItem(id);
       const updated = recordings.filter(r => r.id !== id);
       setRecordings(updated);
-      localStorage.setItem('strudel-recordings', JSON.stringify(updated));
     }
   };
 
@@ -481,11 +504,15 @@ export function LandingPage() {
     try {
       const stageId = await importKals(file);
       // Refresh state
-      const allStages = Object.values(userPattern.getAll()).sort((a, b) => b.created_at - a.created_at);
+      const patterns = await userPattern.getAll();
+      const allStages = Object.values(patterns).sort((a, b) => b.created_at - a.created_at);
       setStages(allStages);
       
-      const savedRecs = JSON.parse(localStorage.getItem('strudel-recordings') || '[]');
-      setRecordings(savedRecs);
+      const savedRecs = [];
+      await recordingsDB.iterate((value) => {
+        savedRecs.push(value);
+      });
+      setRecordings(savedRecs.sort((a, b) => new Date(b.date) - new Date(a.date)));
       
       logger(`[import] 📦 Successfully imported stage ${stageId}`);
     } catch (err) {
@@ -567,7 +594,7 @@ export function LandingPage() {
               <div className="flex flex-col md:flex-row md:items-end justify-between gap-6 bg-gradient-to-r from-[#c9a84c]/10 to-transparent p-8 rounded-2xl border border-[#c9a84c]/20">
                 <div>
                   <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">
-                    Hello <span className="text-[#c9a84c]">{artistProfile ? JSON.parse(artistProfile).name : 'Artist'}</span>
+                    Hello <span className="text-[#c9a84c]">{artistProfile ? artistProfile.name : 'Artist'}</span>
                   </h1>
                   <p className="text-gray-400 text-lg italic">{getRandomGreeting()}</p>
                 </div>
@@ -575,14 +602,14 @@ export function LandingPage() {
                   <div className="text-right flex flex-col items-end">
                     <div className="flex items-center gap-2 mb-2">
                       <span className="text-[10px] font-bold text-[#c9a84c] bg-[#c9a84c]/10 px-2 py-0.5 rounded border border-[#c9a84c]/20 uppercase tracking-widest">
-                        {JSON.parse(artistProfile).id}
+                        {artistProfile.id}
                       </span>
-                      {JSON.parse(artistProfile).tagline && (
-                        <span className="text-[10px] text-gray-500 italic">"{JSON.parse(artistProfile).tagline}"</span>
+                      {artistProfile.tagline && (
+                        <span className="text-[10px] text-gray-500 italic">"{artistProfile.tagline}"</span>
                       )}
                     </div>
                     <div className="flex gap-4 text-[10px] text-gray-600 font-mono uppercase tracking-tighter">
-                      <span>DOB: {JSON.parse(artistProfile).dob || 'N/A'}</span>
+                      <span>DOB: {artistProfile.dob || 'N/A'}</span>
                       <span>STATUS: Verified Artist</span>
                     </div>
                   </div>
@@ -674,7 +701,7 @@ export function LandingPage() {
             <span>Status: Operational</span>
             <span>Local DB: {stages.length} Stages / {recordings.length} Takes</span>
             {artistProfile && (
-              <span className="text-[#c9a84c]">Artist: {JSON.parse(artistProfile).id}</span>
+              <span className="text-[#c9a84c]">Artist: {artistProfile.id}</span>
             )}
           </div>
           <div className="text-[9px] font-mono text-gray-600 uppercase tracking-widest">

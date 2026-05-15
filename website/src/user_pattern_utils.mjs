@@ -5,6 +5,8 @@ import { nanoid } from 'nanoid';
 import { settingsMap } from './settings.mjs';
 import { confirmDialog, parseJSON, code2hash } from './repl/util.mjs';
 
+import { stagesDB } from './db.mjs';
+
 export let $publicPatterns = atom([]);
 export let $featuredPatterns = atom([]);
 
@@ -47,9 +49,23 @@ export const setViewingPatternData = (data) => {
 function parsePageNum(page) {
   return isNaN(page) ? 0 : page;
 }
-export async function loadDBPatterns() {
-  // Database systems removed as requested.
-  return Promise.resolve();
+
+export async function migrateToDB() {
+  const patternsStr = settingsMap.get().userPatterns;
+  if (patternsStr && patternsStr !== '{}' && patternsStr !== 'null') {
+    try {
+      const patterns = parseJSON(patternsStr);
+      if (patterns) {
+        for (const [id, data] of Object.entries(patterns)) {
+          await stagesDB.setItem(id, data);
+        }
+        settingsMap.setKey('userPatterns', '{}');
+        logger('[db] 📦 Migrated stages from localStorage to IndexedDB');
+      }
+    } catch (e) {
+      console.error('Migration failed', e);
+    }
+  }
 }
 
 // reason: https://codeberg.org/uzu/strudel/issues/857
@@ -70,16 +86,19 @@ export const setLatestCode = (code) => settingsMap.setKey('latestCode', code);
 export const defaultCode = '';
 export const userPattern = {
   collection: patternFilterName.user,
-  getAll() {
-    const patterns = parseJSON(settingsMap.get().userPatterns);
-    return patterns ?? {};
+  async getAll() {
+    const patterns = {};
+    await stagesDB.iterate((value, key) => {
+      patterns[key] = value;
+    });
+    return patterns;
   },
-  getPatternData(id) {
-    const userPatterns = this.getAll();
-    return userPatterns[id];
+  async getPatternData(id) {
+    return await stagesDB.getItem(id);
   },
-  exists(id) {
-    return this.getPatternData(id) != null;
+  async exists(id) {
+    const data = await this.getPatternData(id);
+    return data != null;
   },
   isValidID(id) {
     return id != null && id.length > 0;
@@ -90,55 +109,48 @@ export const userPattern = {
     const data = { code: initialCode, created_at: Date.now(), id: newID, collection: this.collection };
     return { id: newID, data };
   },
-  createAndAddToDB() {
+  async createAndAddToDB() {
     const newPattern = this.create();
-    return this.update(newPattern.id, newPattern.data);
+    return await this.update(newPattern.id, newPattern.data);
   },
 
-  update(id, data) {
-    const userPatterns = this.getAll();
+  async update(id, data) {
     data = { ...data, id, collection: this.collection };
-    setUserPatterns({ ...userPatterns, [id]: data });
+    await stagesDB.setItem(id, data);
     return { id, data };
   },
-  duplicate(data) {
+  async duplicate(data) {
     const newPattern = this.create();
-    return this.update(newPattern.id, { ...newPattern.data, code: data.code });
+    return await this.update(newPattern.id, { ...newPattern.data, code: data.code });
   },
-  clearAll() {
-    confirmDialog(`This will delete all your patterns. Are you really sure?`).then((r) => {
-      if (r == false) {
-        return;
-      }
-      const viewingPatternData = getViewingPatternData();
-      setUserPatterns({});
+  async clearAll() {
+    const r = await confirmDialog(`This will delete all your patterns. Are you really sure?`);
+    if (r == false) {
+      return;
+    }
+    const viewingPatternData = getViewingPatternData();
+    await stagesDB.clear();
 
-      if (viewingPatternData.collection !== this.collection) {
-        return { id: viewingPatternData.id, data: viewingPatternData };
-      }
-      setActivePattern(null);
-      return this.create();
-    });
+    if (viewingPatternData.collection !== this.collection) {
+      return { id: viewingPatternData.id, data: viewingPatternData };
+    }
+    setActivePattern(null);
+    return this.create();
   },
-  delete(id) {
-    const userPatterns = this.getAll();
-    delete userPatterns[id];
+  async delete(id) {
+    await stagesDB.removeItem(id);
     if (getActivePattern() === id) {
       setActivePattern(null);
     }
-    setUserPatterns(userPatterns);
     const viewingPatternData = getViewingPatternData();
     const viewingID = viewingPatternData?.id;
     if (viewingID === id) {
       return { id: null, data: { code: defaultCode } };
     }
-    return { id: viewingID, data: userPatterns[viewingID] };
+    const nextData = await this.getPatternData(viewingID);
+    return { id: viewingID, data: nextData };
   },
 };
-
-function setUserPatterns(obj) {
-  return settingsMap.setKey('userPatterns', JSON.stringify(obj));
-}
 
 export const createPatternID = (code = '') => {
   if (!code) return nanoid(8);
@@ -151,11 +163,13 @@ export async function importPatterns(fileList) {
     files.map(async (file, i) => {
       const content = await file.text();
       if (file.type === 'application/json') {
-        const userPatterns = userPattern.getAll();
-        setUserPatterns({ ...userPatterns, ...parseJSON(content) });
+        const patterns = parseJSON(content);
+        for (const [id, data] of Object.entries(patterns)) {
+          await userPattern.update(id, data);
+        }
       } else if (['text/x-markdown', 'text/plain'].includes(file.type)) {
         const id = file.name.replace(/\.[^/.]+$/, '');
-        userPattern.update(id, { code: content });
+        await userPattern.update(id, { code: content });
       }
     }),
   );
@@ -163,7 +177,7 @@ export async function importPatterns(fileList) {
 }
 
 export async function exportPatterns() {
-  const userPatterns = userPattern.getAll();
+  const userPatterns = await userPattern.getAll();
   const blob = new Blob([JSON.stringify(userPatterns)], { type: 'application/json' });
   const downloadLink = document.createElement('a');
   const prefix = window.location.hostname.split('.').join('_');

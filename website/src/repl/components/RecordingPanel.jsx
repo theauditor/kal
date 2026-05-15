@@ -1,5 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import cx from '@src/cx.mjs';
+import { ArrowDownTrayIcon, ClockIcon, MicrophoneIcon, PauseIcon, PlayIcon, StopIcon } from '@heroicons/react/24/outline';
+import { CircleStackIcon } from '@heroicons/react/24/solid';
 
 export function RecordingPanel({ context }) {
   const { toggleArm, isArmed, isRecording, startTime, recordings, currentProjectId } = context;
@@ -58,7 +60,7 @@ export function RecordingPanel({ context }) {
       <div className="flex-grow flex flex-col min-h-0">
         <div className="flex items-center justify-between mb-2">
           <h4 className="font-label-uppercase text-[9px] text-on-surface-variant/40 uppercase tracking-widest flex items-center gap-2">
-            <span className="material-symbols-outlined text-[12px]">history</span>
+            <ClockIcon className="w-3 h-3" />
             Recent Takes
           </h4>
           <span className="font-mono text-[9px] text-on-surface-variant/30">{projectRecordings.length + (isRecording ? 1 : 0)} total</span>
@@ -91,7 +93,7 @@ export function RecordingPanel({ context }) {
 
           {projectRecordings.length === 0 && !isRecording ? (
             <div className="h-32 flex flex-col items-center justify-center border border-dashed border-outline-variant/30 rounded-lg bg-surface-container-low/20">
-              <span className="material-symbols-outlined text-on-surface-variant/10 text-[32px] mb-2">fiber_manual_record</span>
+              <MicrophoneIcon className="w-8 h-8 text-on-surface-variant/10 mb-2" />
               <span className="text-[10px] text-on-surface-variant/30 font-mono">No recordings yet</span>
             </div>
           ) : (
@@ -118,7 +120,7 @@ export function RecordingPanel({ context }) {
                       className="text-on-surface-variant hover:text-surface-tint transition-colors p-1"
                       title="Download Recording"
                     >
-                      <span className="material-symbols-outlined text-[16px]">download</span>
+                      <ArrowDownTrayIcon className="w-4 h-4" />
                     </button>
                   </div>
                 </div>

@@ -1,3 +1,4 @@
+import React, { useState, useEffect } from 'react';
 import { KaalLogoReact } from '@branding/KaalLogoReact';
 import { Bars3Icon, PlayIcon, StopIcon, XMarkIcon } from '@heroicons/react/16/solid';
 import cx from '@src/cx.mjs';
@@ -53,6 +54,24 @@ export function LogoButton({ context, isEmbedded }) {
   );
 }
 
+export function DigitalClock() {
+  const [time, setTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => setTime(new Date()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+
+  return (
+    <div className="flex items-center gap-1.5 px-4 py-1 rounded-md bg-black/20 border border-white/5 backdrop-blur-sm">
+      <div className="w-1.5 h-1.5 rounded-full bg-primary animate-pulse shadow-[0_0_8px_rgba(201,168,76,0.5)]"></div>
+      <span className="font-mono text-xs font-bold tracking-[0.2em] text-primary">
+        {time.toLocaleTimeString([], { hour12: false, hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+      </span>
+    </div>
+  );
+}
+
 export function MainPanel({ context, isEmbedded = false, className }) {
   const { isZen, isButtonRowHidden, fontFamily } = useSettings();
   const viewingPattern = useViewingPatternData();
@@ -90,6 +109,14 @@ export function MainPanel({ context, isEmbedded = false, className }) {
             </div>
           )}
         </div>
+
+        {/* Digital Clock - Centered */}
+        {!isZen && isPerformanceMode && (
+          <div className="absolute left-1/2 top-1/2 -translate-x-1/2 -translate-y-1/2 z-[200]">
+            <DigitalClock />
+          </div>
+        )}
+
         {!isZen && (
           <div className="flex grow justify-end">
             {!isButtonRowHidden && <MainMenu isEmbedded={isEmbedded} context={context} />}

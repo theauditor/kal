@@ -43,6 +43,7 @@ import { setInterval, clearInterval } from 'worker-timers';
 import { getMetadata } from '../metadata_parser';
 import { debugAudiograph } from './audiograph';
 import { exportToKals } from './export_utils.mjs';
+import { recordingsDB } from '../db.mjs';
 
 const { latestCode, maxPolyphony, audioDeviceName, multiChannelOrbits } = settingsMap.get();
 let modulesLoading, presets, drawContext, clearCanvas, audioReady;
@@ -136,17 +137,20 @@ export function useReplContext() {
           
           if ((!currentStage?.id || currentStage.id === 'new') && fullBufferCode.trim()) {
             // Initial project creation
-            const newId = codeHash.substring(0, 8);
-            const newData = { 
-              ...currentStage, 
-              id: newId, 
-              code: fullBufferCode,
-              history: [{ timestamp: Date.now(), code: fullBufferCode }] // Initialize history
-            };
-            userPattern.update(newId, newData);
-            setActivePattern(newId);
-            setViewingPatternData(newData);
-            window.history.pushState({}, '', `${window.location.pathname}#${newId}`);
+            async function createInitialProject() {
+              const newId = codeHash.substring(0, 8);
+              const newData = { 
+                ...currentStage, 
+                id: newId, 
+                code: fullBufferCode,
+                history: [{ timestamp: Date.now(), code: fullBufferCode }] // Initialize history
+              };
+              await userPattern.update(newId, newData);
+              setActivePattern(newId);
+              setViewingPatternData(newData);
+              window.history.pushState({}, '', `${window.location.pathname}#${newId}`);
+            }
+            createInitialProject();
           } else if (currentStage?.id && currentStage.id !== 'new') {
             // Update existing project in local store
             const history = currentStage.history || [];
@@ -167,10 +171,11 @@ export function useReplContext() {
                 history: updatedHistory
               };
               
-              userPattern.update(currentStage.id, updatedData);
-              setViewingPatternData(updatedData); // Sync with session state
-              console.log('[history] Snapshot saved. New total:', updatedHistory.length);
-              logger(`[history] snapshot saved (${updatedHistory.length})`, 'info');
+              userPattern.update(currentStage.id, updatedData).then(() => {
+                setViewingPatternData(updatedData); // Sync with session state
+                console.log('[history] Snapshot saved. New total:', updatedHistory.length);
+                logger(`[history] snapshot saved (${updatedHistory.length})`, 'info');
+              });
             } else {
               console.log('[history] Code unchanged, no snapshot needed.');
             }
@@ -283,14 +288,18 @@ export function useReplContext() {
   const [showHistory, setShowHistory] = useState(false);
 
   useEffect(() => {
-    const saved = localStorage.getItem('strudel-recordings');
-    if (saved) {
+    async function loadRecordings() {
       try {
-        setRecordings(JSON.parse(saved));
+        const savedRecs = [];
+        await recordingsDB.iterate((value) => {
+          savedRecs.push(value);
+        });
+        setRecordings(savedRecs.sort((a, b) => new Date(b.date) - new Date(a.date)));
       } catch (e) {
         console.error('Failed to load recordings', e);
       }
     }
+    loadRecordings();
   }, []);
 
   // Ref to store recording state for the editor's afterEval closure
@@ -310,7 +319,7 @@ export function useReplContext() {
     recordingRef.current.history = recordingHistory;
   }, [isArmed, isRecording, startTime, recordingHistory]);
 
-  const stopRecording = useCallback(() => {
+  const stopRecording = useCallback(async () => {
     if (!isRecording) return;
     
     const now = new Date();
@@ -339,7 +348,7 @@ export function useReplContext() {
     
     const updatedRecordings = [newRecording, ...recordings];
     setRecordings(updatedRecordings);
-    localStorage.setItem('strudel-recordings', JSON.stringify(updatedRecordings));
+    await recordingsDB.setItem(newRecording.id.toString(), newRecording);
     
     setIsRecording(false);
     setStartTime(null);
@@ -350,7 +359,7 @@ export function useReplContext() {
     recordingRef.current.startTime = null;
     recordingRef.current.history = [];
     
-    logger('[recording] ⏹ recording saved');
+    logger('[recording] ⏺ recording saved');
   }, [isRecording, startTime, recordingHistory, recordings]);
 
   const toggleArm = useCallback(() => {
