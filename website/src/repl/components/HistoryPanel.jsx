@@ -12,7 +12,7 @@ export function HistoryPanel({ context }) {
   const sortedHistory = [...history].reverse();
 
   return (
-    <div className="flex flex-col h-full animate-in fade-in slide-in-from-right-4 duration-300 bg-surface-container-low/20">
+    <div className="flex flex-col flex-grow min-h-0 overflow-hidden animate-in fade-in slide-in-from-right-4 duration-300 bg-surface-container-low/20">
       <div className="p-6 border-b border-outline-variant bg-surface-container-low/40">
         <div className="flex items-center justify-between mb-4">
           <h3 className="font-label-uppercase text-label-uppercase text-on-surface-variant/60 text-[10px] tracking-widest uppercase">STAGE TIMELINE</h3>
@@ -35,7 +35,7 @@ export function HistoryPanel({ context }) {
       </div>
       
       <div className="flex-grow flex flex-col min-h-0 p-6">
-        <div className="flex-grow overflow-y-auto pr-2 -mr-2 space-y-3 scroll-hide">
+        <div className="flex-grow overflow-y-auto pr-2 -mr-2 space-y-3 scroll-hide min-h-0">
           {sortedHistory.length === 0 ? (
             <div className="h-32 flex flex-col items-center justify-center border border-dashed border-outline-variant/30 rounded-lg bg-surface-container-low/20">
               <ClockIcon className="w-8 h-8 text-on-surface-variant/10 mb-2" />

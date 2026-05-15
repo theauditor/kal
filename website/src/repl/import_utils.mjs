@@ -9,7 +9,7 @@ export async function importKals(file) {
   // Read metadata
   const metaFile = zip.file('meta.json');
   if (!metaFile) {
-    throw new Error('Invalid .kals file: Missing meta.json');
+    throw new Error('Invalid .kal file: Missing meta.json');
   }
   const metaContent = await metaFile.async('string');
   const metadata = JSON.parse(metaContent);
@@ -45,6 +45,21 @@ export async function importKals(file) {
     }
   }
 
+  // Read cover art
+  let coverArt = null;
+  const coverMatches = zip.file(/cover\.(png|jpg|jpeg|svg|webp)/i);
+  if (coverMatches.length > 0) {
+    const coverFile = coverMatches[0];
+    const ext = coverFile.name.split('.').pop().toLowerCase();
+    if (ext === 'svg') {
+      const svgText = await coverFile.async('string');
+      coverArt = `data:image/svg+xml;base64,${btoa(unescape(encodeURIComponent(svgText)))}`;
+    } else {
+      const base64 = await coverFile.async('base64');
+      coverArt = `data:image/${ext === 'jpg' ? 'jpeg' : ext};base64,${base64}`;
+    }
+  }
+
   // Update user patterns (Stage data)
   const stageData = {
     code: code,
@@ -55,6 +70,7 @@ export async function importKals(file) {
     genre: metadata.genre,
     date: metadata.date,
     id: metadata.id,
+    coverArt: coverArt,
     created_at: Date.now()
   };
 

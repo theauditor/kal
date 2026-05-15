@@ -81,7 +81,7 @@ export default function ReplEditor(Props) {
 
         {/* Kāl Sidebar / Performance Visualizer */}
         {!isZen && (
-          <aside className="hidden md:flex flex-col bg-surface-container-low/30 overflow-y-auto scroll-hide border-l border-outline-variant">
+          <aside className="hidden md:flex flex-col h-full min-h-0 bg-surface-container-low/30 overflow-hidden border-l border-outline-variant">
             {/* Signal Flow Visualizer */}
             <div className="relative h-[300px] border-b border-outline-variant group/viz overflow-hidden">
               <div className="w-full h-full flex flex-col items-center justify-center relative">
@@ -94,7 +94,7 @@ export default function ReplEditor(Props) {
 
             {/* Artist / Stage Plaque Section - Hidden when history is open to give more space */}
             {!showHistory && (
-              <div className="border-b border-outline-variant relative overflow-hidden group flex flex-col">
+              <div className="border-b border-outline-variant relative overflow-hidden group flex flex-col shrink-0">
                 {/* Cover Art Background */}
                 <div className="relative h-64 w-full overflow-hidden bg-surface-container-high">
                   {viewingPatternData?.coverArt ? (
@@ -178,8 +178,8 @@ export default function ReplEditor(Props) {
 
             {/* Sidebar Content: Recording or History */}
             <div className={cx(
-              "flex-grow flex flex-col min-h-0",
-              showHistory ? "p-0" : "p-6"
+              "flex-grow flex flex-col min-h-0 overflow-hidden",
+              showHistory ? "p-0" : "p-4"
             )}>
               {showHistory ? (
                 <HistoryPanel context={context} />

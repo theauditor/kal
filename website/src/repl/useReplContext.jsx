@@ -335,7 +335,7 @@ export function useReplContext() {
     const stageRecCount = recordings.filter(r => r.projectId === currentStageId).length;
     const recNo = (stageRecCount + 1).toString().padStart(2, '0');
     
-    const fileName = `${stageName} - ${dateStr} - ${recNo}.kal`;
+    const fileName = `${stageName} - ${dateStr} - ${recNo}.kalr`;
     
     const newRecording = {
       id: Date.now(),
@@ -369,6 +369,37 @@ export function useReplContext() {
       setIsArmed(!isArmed);
     }
   }, [isArmed, isRecording, stopRecording]);
+
+  const importRecording = useCallback(async (file) => {
+    if (!file) return;
+    const content = await file.text();
+    const viewingPatternData = getViewingPatternData();
+    const currentStageId = viewingPatternData?.id;
+    
+    // Parse duration from the last timestamp in the content
+    const timestamps = [...content.matchAll(/=====\s*\[\s*(\d{2}:\d{2}:\d{2})\s*\]/g)];
+    let duration = '0s';
+    if (timestamps.length > 0) {
+      const last = timestamps[timestamps.length - 1][1];
+      const parts = last.split(':');
+      const totalSec = parseInt(parts[0]) * 60 + parseInt(parts[1]) + parseInt(parts[2]) * 0.05;
+      duration = `${totalSec.toFixed(1)}s`;
+    }
+    
+    const newRecording = {
+      id: Date.now(),
+      projectId: currentStageId,
+      name: file.name,
+      content,
+      date: new Date().toISOString(),
+      duration,
+    };
+    
+    const updatedRecordings = [newRecording, ...recordings];
+    setRecordings(updatedRecordings);
+    await recordingsDB.setItem(newRecording.id.toString(), newRecording);
+    logger(`[recording] 📂 imported ${file.name}`);
+  }, [recordings]);
 
   // this can be simplified once SettingsTab has been refactored to change codemirrorSettings directly!
   // this will be the case when the main repl is being replaced
@@ -500,6 +531,7 @@ export function useReplContext() {
     handleExport,
     toggleArm,
     stopRecording,
+    importRecording,
     isArmed,
     isRecording,
     startTime,
@@ -512,7 +544,7 @@ export function useReplContext() {
     error,
     editorRef,
     containerRef,
-  }), [started, pending, isDirty, activeCode, handleTogglePlay, handleUpdate, handleShuffle, handleShare, handleExportKals, handleEvaluate, handleExport, toggleArm, stopRecording, isArmed, isRecording, startTime, recordings, showHistory, setShowHistory, handleRollback, init, error, getViewingPatternData()?.id]);
+  }), [started, pending, isDirty, activeCode, handleTogglePlay, handleUpdate, handleShuffle, handleShare, handleExportKals, handleEvaluate, handleExport, toggleArm, stopRecording, importRecording, isArmed, isRecording, startTime, recordings, showHistory, setShowHistory, handleRollback, init, error, getViewingPatternData()?.id]);
 
   return context;
 }

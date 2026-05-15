@@ -517,7 +517,7 @@ export function LandingPage() {
       logger(`[import] 📦 Successfully imported stage ${stageId}`);
     } catch (err) {
       console.error('Import failed:', err);
-      alert('Failed to import .kals file: ' + err.message);
+      alert('Failed to import .kal file: ' + err.message);
     }
     // Reset input
     e.target.value = '';
@@ -574,7 +574,7 @@ export function LandingPage() {
               type="file" 
               ref={importInputRef} 
               onChange={handleImportFile} 
-              accept=".kals" 
+              accept=".kal" 
               className="hidden" 
             />
             <button onClick={handleImportClick} className={styles.buttonPrimary.replace('bg-[#c9a84c]', 'bg-[#1a1a1a] text-gray-400 border border-[#c9a84c]/30 hover:bg-[#c9a84c]/20 hover:text-white')}>
