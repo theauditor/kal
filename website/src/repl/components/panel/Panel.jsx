@@ -14,6 +14,8 @@ import { PatternsTab } from './PatternsTab';
 import { Reference } from './Reference';
 import { SettingsTab } from './SettingsTab';
 import { SoundsTab } from './SoundsTab';
+import { WindowControls } from './WindowControls';
+import { useTauriWindow } from './useTauriWindow';
 import { WelcomeTab } from './WelcomeTab';
 
 const TAURI = typeof window !== 'undefined' && window.__TAURI__;
@@ -77,10 +79,13 @@ export function MainPanel({ context, isEmbedded = false, className }) {
   const viewingPattern = useViewingPatternData();
   const projectName = viewingPattern?.name || 'Untitled Project';
   const isPerformanceMode = typeof window !== 'undefined' && window.location.pathname.includes('/p');
+  const { handleDrag } = useTauriWindow();
 
   return (
     <nav
       id="header"
+      data-tauri-drag-region
+      onMouseDown={handleDrag}
       className={cx(
         'flex-none z-[100] select-none h-11',
         !isZen && isPerformanceMode && 'bg-surface-container-low border-b-[1px] border-primary/40 shadow-lg',
@@ -117,12 +122,11 @@ export function MainPanel({ context, isEmbedded = false, className }) {
           </div>
         )}
 
-        {!isZen && (
-          <div className="flex grow justify-end">
-            {!isButtonRowHidden && <MainMenu isEmbedded={isEmbedded} context={context} />}
-            <PanelToggle isEmbedded={isEmbedded} isZen={isZen} />
-          </div>
-        )}
+        <div className={cx('flex grow justify-end h-full', isZen && 'flex-col items-center py-4')}>
+          {!isZen && !isButtonRowHidden && <MainMenu isEmbedded={isEmbedded} context={context} />}
+          {!isZen && <PanelToggle isEmbedded={isEmbedded} isZen={isZen} />}
+          <WindowControls />
+        </div>
       </div>
     </nav>
   );

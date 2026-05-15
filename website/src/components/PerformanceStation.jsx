@@ -25,11 +25,9 @@ export function PerformanceStation() {
     init();
   }, []);
 
-
-
   if (isLoading) {
     return (
-      <div className="fixed inset-0 bg-[#0a0a0a] z-[1000] flex flex-col items-center justify-center overflow-hidden">
+      <div data-tauri-drag-region className="fixed inset-0 bg-[#0a0a0a] z-[1000] flex flex-col items-center justify-center overflow-hidden cursor-move">
         <AnimatedKaalLogo size={300} />
         <div className="mt-8 flex flex-col items-center gap-2">
           <h1 className="text-[#c9a84c] text-3xl font-display-lg tracking-[0.4em] font-bold animate-pulse">KĀL</h1>
@@ -44,7 +42,6 @@ export function PerformanceStation() {
       <div className="flex-grow">
         <Repl />
       </div>
-
     </div>
   );
 }

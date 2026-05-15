@@ -6,6 +6,8 @@ import { logger } from '@strudel/core';
 import { settingsMap } from '../settings.mjs';
 import { useStore } from '@nanostores/react';
 import { artistDB, recordingsDB } from '../db.mjs';
+import { WindowControls } from '../repl/components/panel/WindowControls';
+import { useTauriWindow } from '../repl/components/panel/useTauriWindow';
 
 // Desktop App Styles
 const styles = {
@@ -372,6 +374,7 @@ const NewStageModal = ({ onSave, onCancel }) => {
 
 export function LandingPage() {
   const [activeTab, setActiveTab] = useState('stages');
+  const { handleDrag } = useTauriWindow();
   const [search, setSearch] = useState('');
   const [stages, setStages] = useState([]);
   const [recordings, setRecordings] = useState([]);
@@ -552,7 +555,7 @@ export function LandingPage() {
 
       {/* Main Panel */}
       <div className={styles.main}>
-        <header className={styles.header}>
+        <header className={styles.header} data-tauri-drag-region onMouseDown={handleDrag}>
           <div className="flex items-center gap-6">
             <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-[#c9a84c]">
               {activeTab === 'stages' ? 'Production Stages' : 'Recordings Library'}
@@ -585,6 +588,7 @@ export function LandingPage() {
               <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3"><line x1="12" y1="5" x2="12" y2="19"></line><line x1="5" y1="12" x2="19" y2="12"></line></svg>
               NEW STAGE
             </button>
+            <WindowControls />
           </div>
         </header>
 
