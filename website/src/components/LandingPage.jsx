@@ -3,9 +3,9 @@ import { userPattern, getViewingPatternData, setViewingPatternData, setActivePat
 import { AnimatedKaalLogo } from '@branding/AnimatedKaalLogo';
 import { importKals } from '../repl/import_utils.mjs';
 import { logger } from '@strudel/core';
-import { settingsMap } from '../settings.mjs';
+import { settingsMap, useSettings, setIsZen, setVisualizerMode, setSyncFolder, setMidiController } from '../settings.mjs';
 import { useStore } from '@nanostores/react';
-import { artistDB, recordingsDB } from '../db.mjs';
+import { artistDB, recordingsDB, syncToFolder } from '../db.mjs';
 import { WindowControls } from '../repl/components/panel/WindowControls';
 import { useTauriWindow } from '../repl/components/panel/useTauriWindow';
 
@@ -372,6 +372,334 @@ const NewStageModal = ({ onSave, onCancel }) => {
   );
 };
 
+const SettingsView = ({ artistProfile, onSaveArtistProfile }) => {
+  const settings = useSettings();
+  const [artistForm, setArtistForm] = useState({
+    id: artistProfile?.id || '',
+    name: artistProfile?.name || '',
+    dob: artistProfile?.dob || '',
+    tagline: artistProfile?.tagline || ''
+  });
+  const [artistMessage, setArtistMessage] = useState('');
+  const [syncMessage, setSyncMessage] = useState('');
+  const [isSyncing, setIsSyncing] = useState(false);
+  const [midiDevices, setMidiDevices] = useState([]);
+
+  useEffect(() => {
+    if (artistProfile) {
+      setArtistForm({
+        id: artistProfile.id || '',
+        name: artistProfile.name || '',
+        dob: artistProfile.dob || '',
+        tagline: artistProfile.tagline || ''
+      });
+    }
+  }, [artistProfile]);
+
+  useEffect(() => {
+    async function initMidi() {
+      try {
+        const { enableWebMidi, WebMidi } = await import('@strudel/midi');
+        await enableWebMidi({
+          onEnabled: (wm) => {
+            setMidiDevices(wm.inputs.map(i => i.name));
+          },
+          onConnected: (wm) => {
+            setMidiDevices(wm.inputs.map(i => i.name));
+          },
+          onDisconnected: (wm) => {
+            setMidiDevices(wm.inputs.map(i => i.name));
+          }
+        });
+        if (WebMidi.enabled) {
+          setMidiDevices(WebMidi.inputs.map(i => i.name));
+        }
+      } catch (e) {
+        console.warn('WebMidi not supported or disabled', e);
+      }
+    }
+    initMidi();
+  }, []);
+
+  const handleArtistChange = (e) => {
+    const { name, value } = e.target;
+    if (name === 'id') {
+      const filtered = value.toLowerCase().replace(/[^a-z0-9._]/g, '');
+      setArtistForm(prev => ({ ...prev, [name]: filtered }));
+    } else {
+      setArtistForm(prev => ({ ...prev, [name]: value }));
+    }
+  };
+
+  const handleArtistSubmit = async (e) => {
+    e.preventDefault();
+    if (!artistForm.id || !artistForm.name) {
+      setArtistMessage('Error: Artist ID and Name are required');
+      return;
+    }
+    await onSaveArtistProfile(artistForm);
+    setArtistMessage('Artist profile updated successfully!');
+    setTimeout(() => setArtistMessage(''), 3000);
+  };
+
+  const handleSelectFolder = async () => {
+    const IS_TAURI = typeof window !== 'undefined' && (window.__TAURI__ || window.__TAURI_INTERNALS__);
+    if (!IS_TAURI) {
+      setSyncMessage('Error: Folder selection is only supported in Tauri desktop app');
+      return;
+    }
+    try {
+      const { open } = await import('@tauri-apps/plugin-dialog');
+      const selected = await open({
+        directory: true,
+        multiple: false,
+        title: 'Select Backup Sync Folder'
+      });
+      if (selected) {
+        setSyncFolder(selected);
+        setIsSyncing(true);
+        setSyncMessage('Syncing database...');
+        await syncToFolder(selected);
+        setSyncMessage('Folder configured and database synced successfully!');
+        setIsSyncing(false);
+      }
+    } catch (err) {
+      console.error(err);
+      setSyncMessage('Failed to setup sync folder: ' + (err.message || err));
+      setIsSyncing(false);
+    }
+  };
+
+  const handleManualSync = async () => {
+    if (!settings.syncFolder) return;
+    setIsSyncing(true);
+    setSyncMessage('Syncing database...');
+    try {
+      await syncToFolder(settings.syncFolder);
+      setSyncMessage('Database synced successfully!');
+    } catch (err) {
+      setSyncMessage('Sync failed: ' + (err.message || err));
+    }
+    setIsSyncing(false);
+  };
+
+  return (
+    <div className="space-y-10 animate-in fade-in slide-in-from-bottom-2 duration-500 max-w-4xl">
+      {/* Artist Profile Section */}
+      <div className={styles.card}>
+        <div className="flex items-center gap-3 mb-6 border-b border-[#1a1a1a] pb-4">
+          <div className="w-8 h-8 rounded-lg bg-[#c9a84c]/10 border border-[#c9a84c]/20 flex items-center justify-center text-[#c9a84c]">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path><circle cx="12" cy="7" r="4"></circle></svg>
+          </div>
+          <div>
+            <h3 className="font-bold text-white text-lg tracking-tight">Artist Identity</h3>
+            <p className="text-[10px] text-gray-500 uppercase tracking-widest">Update your permanent performance profile</p>
+          </div>
+        </div>
+
+        <form onSubmit={handleArtistSubmit}>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
+            <div>
+              <label className={styles.label}>Artist ID (Username)</label>
+              <input 
+                name="id"
+                className={styles.modalInput} 
+                placeholder="e.g. artist.name_01"
+                value={artistForm.id}
+                onChange={handleArtistChange}
+                required
+              />
+              <p className="text-[9px] text-gray-600 mt-1 italic">Lowercase, numbers, dots, underscores only.</p>
+            </div>
+            <div>
+              <label className={styles.label}>Full Name</label>
+              <input 
+                name="name"
+                className={styles.modalInput} 
+                placeholder="Your professional name"
+                value={artistForm.name}
+                onChange={handleArtistChange}
+                required
+              />
+            </div>
+            <div>
+              <label className={styles.label}>Date of Birth</label>
+              <input 
+                name="dob"
+                type="date"
+                className={styles.modalInput} 
+                value={artistForm.dob}
+                onChange={handleArtistChange}
+              />
+            </div>
+            <div>
+              <label className={styles.label}>Tagline</label>
+              <input 
+                name="tagline"
+                className={styles.modalInput} 
+                placeholder="Brief bio..."
+                value={artistForm.tagline}
+                onChange={handleArtistChange}
+              />
+            </div>
+          </div>
+          {artistMessage && (
+            <p className={`text-xs mb-4 p-3 rounded border ${artistMessage.includes('Error') ? 'bg-red-500/10 border-red-500/30 text-red-400' : 'bg-green-500/10 border-green-500/30 text-green-400'}`}>
+              {artistMessage}
+            </p>
+          )}
+          <button type="submit" className={styles.buttonPrimary}>
+            UPDATE ARTIST INFO
+          </button>
+        </form>
+      </div>
+
+      {/* Persistent Storage Section */}
+      <div className={styles.card}>
+        <div className="flex items-center gap-3 mb-6 border-b border-[#1a1a1a] pb-4">
+          <div className="w-8 h-8 rounded-lg bg-[#c9a84c]/10 border border-[#c9a84c]/20 flex items-center justify-center text-[#c9a84c]">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+          </div>
+          <div>
+            <h3 className="font-bold text-white text-lg tracking-tight">Persistent Storage Sync</h3>
+            <p className="text-[10px] text-gray-500 uppercase tracking-widest">Automatic local database backup folder</p>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          <div>
+            <label className={styles.label}>Current Sync Directory</label>
+            <div className="flex gap-4 items-center">
+              <input 
+                readOnly
+                className={styles.modalInput + " font-mono text-xs opacity-80"} 
+                value={settings.syncFolder || 'No folder selected'}
+                placeholder="No folder configured"
+              />
+              <button type="button" onClick={handleSelectFolder} className={styles.buttonPrimary + " shrink-0"}>
+                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2.0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                {settings.syncFolder ? 'CHANGE FOLDER' : 'SELECT FOLDER'}
+              </button>
+            </div>
+            <p className="text-[10px] text-gray-500 mt-2">
+              Selecting a folder will automatically sync and backup your stages, recordings, and artist profile as <code className="text-[#c9a84c]">kaal_backup.json</code>.
+            </p>
+          </div>
+
+          {settings.syncFolder && (
+            <div className="flex items-center gap-4 pt-2">
+              <button 
+                type="button" 
+                onClick={handleManualSync} 
+                disabled={isSyncing}
+                className="bg-[#1a1a1a] hover:bg-[#222] text-[#dae3f1] border border-[#c9a84c]/30 px-4 py-2 rounded-lg text-xs font-bold transition-all flex items-center gap-2 disabled:opacity-50"
+              >
+                <svg className={isSyncing ? "animate-spin" : ""} xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><polyline points="23 4 23 10 17 10"></polyline><polyline points="1 20 1 14 7 14"></polyline><path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path></svg>
+                {isSyncing ? 'SYNCING...' : 'SYNC NOW'}
+              </button>
+              {syncMessage && (
+                <span className={`text-xs ${syncMessage.includes('Error') || syncMessage.includes('failed') ? 'text-red-400' : 'text-[#c9a84c]'}`}>
+                  {syncMessage}
+                </span>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Default Editor Settings Section */}
+      <div className={styles.card}>
+        <div className="flex items-center gap-3 mb-6 border-b border-[#1a1a1a] pb-4">
+          <div className="w-8 h-8 rounded-lg bg-[#c9a84c]/10 border border-[#c9a84c]/20 flex items-center justify-center text-[#c9a84c]">
+            <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+          </div>
+          <div>
+            <h3 className="font-bold text-white text-lg tracking-tight">Editor & Display Preferences</h3>
+            <p className="text-[10px] text-gray-500 uppercase tracking-widest">Adjust default settings for new production stages</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex items-center justify-between p-4 bg-[#0a0a0a] rounded-xl border border-[#222]">
+            <div>
+              <span className="text-sm font-bold text-white block">Zen Mode Default</span>
+              <span className="text-[10px] text-gray-500">Enable clean minimal performance interface</span>
+            </div>
+            <button 
+              type="button" 
+              onClick={() => setIsZen(!settings.isZen)} 
+              className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${settings.isZen ? 'bg-[#c9a84c]' : 'bg-[#222]'}`}
+            >
+              <div className={`bg-black w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.isZen ? 'translate-x-6' : 'translate-x-0'}`} />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-[#0a0a0a] rounded-xl border border-[#222]">
+            <div>
+              <span className="text-sm font-bold text-white block">Auto Completion</span>
+              <span className="text-[10px] text-gray-500">Show code suggestions while typing</span>
+            </div>
+            <button 
+              type="button" 
+              onClick={() => settingsMap.setKey('isAutoCompletionEnabled', !settings.isAutoCompletionEnabled)} 
+              className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${settings.isAutoCompletionEnabled ? 'bg-[#c9a84c]' : 'bg-[#222]'}`}
+            >
+              <div className={`bg-black w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.isAutoCompletionEnabled ? 'translate-x-6' : 'translate-x-0'}`} />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-[#0a0a0a] rounded-xl border border-[#222]">
+            <div>
+              <span className="text-sm font-bold text-white block">Line Numbers</span>
+              <span className="text-[10px] text-gray-500">Display line numbers in REPL editor</span>
+            </div>
+            <button 
+              type="button" 
+              onClick={() => settingsMap.setKey('isLineNumbersDisplayed', !settings.isLineNumbersDisplayed)} 
+              className={`w-12 h-6 flex items-center rounded-full p-1 transition-colors ${settings.isLineNumbersDisplayed ? 'bg-[#c9a84c]' : 'bg-[#222]'}`}
+            >
+              <div className={`bg-black w-4 h-4 rounded-full shadow-md transform transition-transform ${settings.isLineNumbersDisplayed ? 'translate-x-6' : 'translate-x-0'}`} />
+            </button>
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-[#0a0a0a] rounded-xl border border-[#222]">
+            <div>
+              <span className="text-sm font-bold text-white block">Visualizer Mode</span>
+              <span className="text-[10px] text-gray-500">Default audio visualizer style</span>
+            </div>
+            <select 
+              className="bg-[#111] border border-[#333] focus:border-[#c9a84c] rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none"
+              value={settings.visualizerMode || 'waveform'}
+              onChange={(e) => setVisualizerMode(e.target.value)}
+            >
+              <option value="waveform">Waveform</option>
+              <option value="ridge">Ridge (3D Terrain)</option>
+              <option value="none">None</option>
+            </select>
+          </div>
+
+          <div className="flex items-center justify-between p-4 bg-[#0a0a0a] rounded-xl border border-[#222]">
+            <div>
+              <span className="text-sm font-bold text-white block">MIDI Controller</span>
+              <span className="text-[10px] text-gray-500">Default device for all MIDI input in REPL</span>
+            </div>
+            <select 
+              className="bg-[#111] border border-[#333] focus:border-[#c9a84c] rounded-lg px-3 py-1.5 text-xs text-white focus:outline-none max-w-[200px] truncate"
+              value={settings.midiController || ''}
+              onChange={(e) => setMidiController(e.target.value || null)}
+            >
+              <option value="">None (Auto-detect)</option>
+              {midiDevices.map(dev => (
+                <option key={dev} value={dev}>{dev}</option>
+              ))}
+            </select>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
 export function LandingPage() {
   const [activeTab, setActiveTab] = useState('stages');
   const { handleDrag } = useTauriWindow();
@@ -443,6 +771,11 @@ export function LandingPage() {
     setArtistProfile(profile);
     setShowArtistModal(false);
     setShowStageModal(true);
+  };
+
+  const updateArtistProfile = async (profile) => {
+    await artistDB.setItem('profile', profile);
+    setArtistProfile(profile);
   };
 
   const createStageWithMetadata = async (metadata) => {
@@ -546,6 +879,9 @@ export function LandingPage() {
         <button onClick={() => setActiveTab('recordings')} className={styles.tabBtn(activeTab === 'recordings')} title="Recordings Library">
           <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="10"></circle><circle cx="12" cy="12" r="3"></circle></svg>
         </button>
+        <button onClick={() => setActiveTab('settings')} className={styles.tabBtn(activeTab === 'settings')} title="Settings">
+          <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+        </button>
         <div className="mt-auto">
           <button onClick={() => window.open('https://github.com/strudel/kaal', '_blank')} className="text-gray-600 hover:text-white transition-colors">
             <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M9 19c-5 1.5-5-2.5-7-3m14 6v-3.87a3.37 3.37 0 0 0-.94-2.61c3.14-.35 6.44-1.54 6.44-7A5.44 5.44 0 0 0 20 4.77 5.07 5.07 0 0 0 19.91 1S18.73.65 16 2.48a13.38 13.38 0 0 0-7 0C6.27.65 5.09 1 5.09 1A5.07 5.07 0 0 0 5 4.77a5.44 5.44 0 0 0-1.5 3.78c0 5.42 3.3 6.61 6.44 7A3.37 3.37 0 0 0 9 18.13V22"></path></svg>
@@ -558,7 +894,7 @@ export function LandingPage() {
         <header className={styles.header} data-tauri-drag-region onMouseDown={handleDrag}>
           <div className="flex items-center gap-6">
             <h2 className="text-sm font-bold uppercase tracking-[0.2em] text-[#c9a84c]">
-              {activeTab === 'stages' ? 'Production Stages' : 'Recordings Library'}
+              {activeTab === 'stages' ? 'Production Stages' : activeTab === 'recordings' ? 'Recordings Library' : 'System Settings'}
             </h2>
             <div className="relative">
               <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-600" xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg>
@@ -622,7 +958,7 @@ export function LandingPage() {
             </div>
           )}
 
-          {activeTab === 'stages' ? (
+          {activeTab === 'stages' && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 animate-in fade-in slide-in-from-bottom-2 duration-500">
               {filteredStages.map(p => (
                 <StageItem 
@@ -641,7 +977,8 @@ export function LandingPage() {
                 </div>
               )}
             </div>
-          ) : (
+          )}
+          {activeTab === 'recordings' && (
             <div className="animate-in fade-in slide-in-from-bottom-2 duration-500">
               <div className="bg-[#111] border border-[#1a1a1a] rounded-xl overflow-hidden">
                 <table className="w-full text-left border-collapse">
@@ -696,6 +1033,9 @@ export function LandingPage() {
                 </table>
               </div>
             </div>
+          )}
+          {activeTab === 'settings' && (
+            <SettingsView artistProfile={artistProfile} onSaveArtistProfile={updateArtistProfile} />
           )}
         </main>
 

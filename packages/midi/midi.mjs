@@ -481,6 +481,22 @@ async function _initializeInput(input) {
     );
   }
 
+  if (input === undefined) {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const settingsStr = localStorage.getItem('strudel-settings');
+        if (settingsStr) {
+          const settings = JSON.parse(settingsStr);
+          if (settings.midiController) {
+            input = settings.midiController;
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+  }
+
   const initial = await enableWebMidi(); // only returns on first init
 
   const instance = midiInputs[input] || new MidiInput(input);

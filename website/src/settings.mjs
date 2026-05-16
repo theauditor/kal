@@ -70,6 +70,8 @@ export const defaultSettings = {
   includePrebakeScriptInShare: true,
   settingsTab: 'settings',
   visualizerMode: 'waveform',
+  syncFolder: null,
+  midiController: null,
 };
 
 let search = null;
@@ -143,6 +145,8 @@ export const storePrebakeScript = (script) => settingsMap.setKey('prebakeScript'
 
 export const setIsZen = (active) => settingsMap.setKey('isZen', !!active);
 export const setVisualizerMode = (mode) => settingsMap.setKey('visualizerMode', mode);
+export const setSyncFolder = (folder) => settingsMap.setKey('syncFolder', folder);
+export const setMidiController = (device) => settingsMap.setKey('midiController', device);
 
 const patternSetting = (key) =>
   register(key, (value, pat) =>

@@ -23,6 +23,22 @@ export function getMidiDeviceNamesString(devices) {
  * @returns {Input | Output | undefined}
  */
 export function getDevice(indexOrName, devices) {
+  if (indexOrName === undefined) {
+    if (typeof localStorage !== 'undefined') {
+      try {
+        const settingsStr = localStorage.getItem('strudel-settings');
+        if (settingsStr) {
+          const settings = JSON.parse(settingsStr);
+          if (settings.midiController) {
+            indexOrName = settings.midiController;
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    }
+  }
+
   if (typeof indexOrName === 'number') {
     return devices[indexOrName];
   }
